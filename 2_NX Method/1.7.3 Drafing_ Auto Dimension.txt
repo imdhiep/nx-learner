@@ -1,0 +1,100 @@
+using System;
+using NXOpen;
+using NXOpen.Drawings;
+using NXOpen.UF;
+
+public class NXJournal
+{
+    public static void Main(string[] args)
+    {
+        Session theSession = Session.GetSession();
+        Part workPart = theSession.Parts.Work;
+
+        // Lấy DrawingSheet hiện hành
+        DrawingSheet currentSheet = workPart.DrawingSheets.CurrentDrawingSheet;
+        if (currentSheet == null)
+        {
+            return;
+        }
+
+        // Lấy tất cả các DraftingView trên sheet hiện hành
+        DraftingView[] views = currentSheet.GetDraftingViews();
+        if (views == null || views.Length == 0)
+        {
+            return;
+        }
+
+        UFSession ufSession = UFSession.GetUFSession();
+
+        // Biến đếm chỉ tính các view không phải "Isometric"
+        int nonIsoViewCounter = 0;
+
+        // Duyệt qua từng view (bỏ qua view có tên bắt đầu bằng "Isometric")
+        foreach (DraftingView view in views)
+        {
+            if (view.Name.StartsWith("Isometric"))
+                continue;
+
+            // Xác định tọa độ khởi tạo cho Diameter Dimension dựa theo thứ tự của view
+            double[] dimOrigin = new double[3];
+            if (nonIsoViewCounter == 0)
+            {
+                // View đầu tiên: (40,200 , 0)
+                dimOrigin[0] = 40.0;
+                dimOrigin[1] = 200.0;
+                dimOrigin[2] = 0.0;
+            }
+            else if (nonIsoViewCounter == 1)
+            {
+                // View thứ hai: (300, 200, 0)
+                dimOrigin[0] = 300.0;
+                dimOrigin[1] = 200.0;
+                dimOrigin[2] = 0.0;
+            }
+            else if (nonIsoViewCounter == 2)
+            {
+                // View thứ ba: (320, 90, 0)
+                dimOrigin[0] = 50.0;
+                dimOrigin[1] = 100.0;
+                dimOrigin[2] = 0.0;
+            }
+            else
+            {
+                // Với các view sau, bạn có thể đặt tọa độ mặc định hoặc tùy chỉnh theo nhu cầu
+                dimOrigin[0] = 200.0;
+                dimOrigin[1] = 150.0;
+                dimOrigin[2] = 0.0;
+            }
+            nonIsoViewCounter++;
+
+            // Lấy các đối tượng hiển thị trong view
+            DisplayableObject[] visibleObjs = view.AskVisibleObjects();
+            if (visibleObjs != null)
+            {
+                // Duyệt qua từng đối tượng trong view
+                foreach (DisplayableObject obj in visibleObjs)
+                {
+                    int ufType, ufSubtype;
+                    ufSession.Obj.AskTypeAndSubtype(obj.Tag, out ufType, out ufSubtype);
+
+                    if (ufType == UFConstants.UF_circle_type)
+                    {
+                        // Nếu đối tượng thuộc kiểu DraftingCurve thì tạo Diameter Dimension
+                        if (obj is DraftingCurve)
+                        {
+                            UFDrf.Object ufDrfObj = new UFDrf.Object();
+                            UFDrf.Text text = new UFDrf.Text();
+
+                            ufDrfObj.object_tag = obj.Tag;
+                            ufDrfObj.object_view_tag = view.Tag;
+                            ufDrfObj.object_assoc_type = UFDrf.AssocType.Intersection;
+
+                            Tag dimensionTag;
+                            ufSession.Drf.CreateDiameterDim(ref ufDrfObj, ref text, dimOrigin, out dimensionTag);
+                        }
+                    }
+                }
+            }
+        }
+    }
+}

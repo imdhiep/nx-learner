@@ -1,0 +1,126 @@
+using System;
+using NXOpen;
+using NXOpen.UF;
+using NXOpen.Drawings;
+
+namespace NXCenterlineReport
+{
+    public static class Program
+    {
+        static Session theSession = Session.GetSession();
+        static UFSession theUfSession = UFSession.GetUFSession();
+        static UI theUI = UI.GetUI();
+        static ListingWindow lw = theSession.ListingWindow;
+
+        public static void Main()
+        {
+            Session.UndoMarkId markId1;
+            markId1 = theSession.SetUndoMark(Session.MarkVisibility.Visible, "report centerline");
+
+            lw.Open();
+            NXOpen.Annotations.Centerline myCenterline = null;
+
+            while (SelectCenterLine("select centerline", out myCenterline) == Selection.Response.Ok)
+            {
+                string handle = null;
+                string fileData = null;
+                uint ID = 0;
+                uint version = 0;
+
+                // Lưu ý: AskHandleOfTag bị đánh dấu là obsolete
+                handle = theUfSession.Tag.AskHandleOfTag(myCenterline.Tag);
+                theUfSession.Tag.DecomposeHandle(handle, out fileData, out ID, out version);
+                // lw.WriteLine("center line ID: " + ID.ToString());
+
+                for (int i = 1; i <= myCenterline.NumberOfAssociativities; i++)
+                {
+                    NXOpen.Annotations.Associativity myAssociativity = myCenterline.GetAssociativity(i);
+                    lw.WriteLine("associativity: " + i.ToString());
+                    lw.WriteLine(myAssociativity.FirstObject.GetType().ToString());
+                    lw.WriteLine("isOccurrence: " + myAssociativity.FirstObject.IsOccurrence.ToString());
+                    lw.WriteLine("point option: " + myAssociativity.PointOption.ToString());
+                    // lw.WriteLine("first definition point: " + myAssociativity.FirstDefinitionPoint.ToString());
+                    lw.WriteLine("pick point (model): " + myAssociativity.PickPoint.ToString());
+
+                    if (myAssociativity.FirstObject.IsOccurrence)
+                    {
+                        lw.WriteLine("owning component: " + myAssociativity.FirstObject.OwningComponent.DisplayName);
+                    }
+
+                    if (myAssociativity.FirstObject is NXOpen.Drawings.DraftingCurve)
+                    {
+                        int parentCount;
+                        Tag[] parents = null;
+                        theUfSession.Draw.AskDraftingCurveParents(myAssociativity.FirstObject.Tag, out parentCount, out parents);
+                        // lw.WriteLine("parent count: " + parentCount.ToString());
+                        foreach (Tag temp in parents)
+                        {
+                            NXObject tempObj = (NXObject)NXOpen.Utilities.NXObjectManager.Get(temp);
+                            // lw.WriteLine("parent type: " + tempObj.GetType().ToString());
+                            // lw.WriteLine("is occurrence: " + tempObj.IsOccurrence.ToString());
+                            if (tempObj.IsOccurrence)
+                            {
+                                lw.WriteLine("owning component: " + tempObj.OwningComponent.DisplayName);
+                            }
+                            else
+                            {
+                                lw.WriteLine("owning part: " + tempObj.OwningPart.Leaf);
+                            }
+                        }
+                    }
+
+                    lw.WriteLine("");
+                }
+            }
+            lw.Close();
+        }
+
+        public static Selection.Response SelectCenterLine(string prompt, out NXOpen.Annotations.Centerline selObj)
+        {
+            selObj = null;
+            UI theUI = UI.GetUI();
+            string title = "Select a centerline";
+            bool includeFeatures = false;
+            bool keepHighlighted = false;
+            Selection.SelectionAction selAction = Selection.SelectionAction.ClearAndEnableSpecific;
+            Point3d cursor = new Point3d();
+            Selection.SelectionScope scope = Selection.SelectionScope.WorkPart;
+
+            Selection.MaskTriple[] selectionMask_array = new Selection.MaskTriple[2];
+
+            selectionMask_array[0] = new Selection.MaskTriple();
+            selectionMask_array[0].Type = UFConstants.UF_drafting_entity_type;
+            selectionMask_array[0].Subtype = UFConstants.UF_draft_linear_cntrln_subtype;
+
+            selectionMask_array[1] = new Selection.MaskTriple();
+            selectionMask_array[1].Type = UFConstants.UF_drafting_entity_type;
+            selectionMask_array[1].Subtype = UFConstants.UF_draft_cyl_cntrln_subtype;
+
+            NXOpen.TaggedObject tempObj;
+            Selection.Response resp = theUI.SelectionManager.SelectTaggedObject(
+                prompt,
+                title,
+                scope,
+                selAction,
+                includeFeatures,
+                keepHighlighted,
+                selectionMask_array,
+                out tempObj,
+                out cursor);
+
+            if (resp == Selection.Response.ObjectSelected || resp == Selection.Response.ObjectSelectedByName)
+            {
+                selObj = tempObj as NXOpen.Annotations.Centerline;
+                if (selObj != null)
+                    return Selection.Response.Ok;
+            }
+            return Selection.Response.Cancel;
+        }
+
+        public static int GetUnloadOption(string dummy)
+        {
+            // Unloads the image immediately after execution within NX
+            return (int)Session.LibraryUnloadOption.Immediately;
+        }
+    }
+}

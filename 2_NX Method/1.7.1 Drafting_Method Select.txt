@@ -1,0 +1,593 @@
+**************duyệt tabular + Sheet
+using System;
+using System.Collections.Generic;
+using NXOpen;
+using NXOpen.UF;
+using NXOpen.Drawings;
+
+public class ReportSheetsWithTabular
+{
+    public static void Main(string[] args)
+    {
+        // Lấy phiên làm việc hiện hành và Part đang hoạt động.
+        Session theSession = Session.GetSession();
+        Part workPart = theSession.Parts.Work;
+        UFSession ufSession = UFSession.GetUFSession();
+        ListingWindow lw = theSession.ListingWindow;
+        lw.Open();
+        
+        // 1. Lấy danh sách tên các Sheet trong Part.
+        lw.WriteLine("Danh sách tên các Sheet trong Part:");
+        List<DraftingDrawingSheet> sheetList = new List<DraftingDrawingSheet>();
+        foreach (DrawingSheet sheet in workPart.DrawingSheets)
+        {
+            DraftingDrawingSheet draftingSheet = sheet as DraftingDrawingSheet;
+            if (draftingSheet != null)
+            {
+                sheetList.Add(draftingSheet);
+                lw.WriteLine("Sheet: " + draftingSheet.Name);
+            }
+        }
+        
+        // 2. Lấy danh sách các Tabular Note có đúng 6 cột.
+        List<Tag> tabularList = new List<Tag>();
+        Tag tabNote = Tag.Null;
+        do
+        {
+            tabNote = GetNextTabularNote(tabNote, workPart, ufSession);
+            if (tabNote.Equals(Tag.Null))
+                break;
+            
+            int numCols = 0;
+            ufSession.Tabnot.AskNmColumns(tabNote, out numCols);
+            if (numCols == 6)
+            {
+                tabularList.Add(tabNote);
+            }
+        } while (!tabNote.Equals(Tag.Null));
+        
+        // 3. Ánh xạ: Sheet đầu tiên chứa Tabular đầu tiên, Sheet thứ 2 chứa Tabular thứ 2, ...
+        lw.WriteLine("\nBáo cáo kết quả:");
+        int mappingCount = Math.Min(sheetList.Count, tabularList.Count);
+        for (int i = 0; i < mappingCount; i++)
+        {
+            DraftingDrawingSheet sheet = sheetList[i];
+            Tag tabTag = tabularList[i];
+            
+            lw.WriteLine("Sheet name: " + sheet.Name);
+            lw.WriteLine("Found a Tabular Note: " + tabTag.ToString());
+            ProcessTheTabNote(tabTag, ufSession, lw);
+            lw.WriteLine(""); // dòng trống phân cách
+        }
+        
+        // Nếu số sheet nhiều hơn số tabular note hợp lệ.
+        if (sheetList.Count > mappingCount)
+        {
+            for (int i = mappingCount; i < sheetList.Count; i++)
+            {
+                lw.WriteLine("Sheet name: " + sheetList[i].Name);
+                lw.WriteLine("  => Không tìm thấy Tabular Note hợp lệ (6 cột) cho sheet này.");
+            }
+        }
+        // Nếu có tabular note dư ra không có sheet tương ứng.
+        if (tabularList.Count > mappingCount)
+        {
+            for (int i = mappingCount; i < tabularList.Count; i++)
+            {
+                lw.WriteLine("Tabular Note " + tabularList[i].ToString() + " không có sheet tương ứng.");
+            }
+        }
+    }
+    
+    // Hàm duyệt qua các Tabular Note trong Part.
+    public static Tag GetNextTabularNote(Tag currentTab, Part workPart, UFSession ufSession)
+    {
+        do
+        {
+            // Duyệt qua các đối tượng trong part có kiểu Tabular Note.
+            ufSession.Obj.CycleObjsInPart(workPart.Tag, UFConstants.UF_tabular_note_type, ref currentTab);
+            if (currentTab.Equals(Tag.Null))
+                return currentTab;
+            
+            int type, subtype;
+            ufSession.Obj.AskTypeAndSubtype(currentTab, out type, out subtype);
+            if (subtype.Equals(UFConstants.UF_tabular_note_subtype))
+            {
+                return currentTab;
+            }
+        } while (!currentTab.Equals(Tag.Null));
+        
+        return currentTab;
+    }
+    
+    // Hàm in ra nội dung của một Tabular Note.
+    public static void ProcessTheTabNote(Tag tabNote, UFSession ufSession, ListingWindow lw)
+    {
+        int numRows = 0, numCols = 0;
+        ufSession.Tabnot.AskNmRows(tabNote, out numRows);
+        ufSession.Tabnot.AskNmColumns(tabNote, out numCols);
+        
+        // Duyệt qua các hàng của bảng.
+        for (int r = 0; r < numRows; r++)
+        {
+            lw.WriteLine("  Row number: " + (r + 1) + "  Column Number: " + numCols);
+            Tag rowTag = Tag.Null;
+            try
+            {
+                ufSession.Tabnot.AskNthRow(tabNote, r, out rowTag);
+            }
+            catch (Exception)
+            {
+                continue;
+            }
+            // Duyệt qua các cột trong hàng hiện tại.
+            for (int c = 0; c < numCols; c++)
+            {
+                Tag colTag = Tag.Null;
+                Tag cellTag = Tag.Null;
+                try
+                {
+                    ufSession.Tabnot.AskNthColumn(tabNote, c, out colTag);
+                    ufSession.Tabnot.AskCellAtRowCol(rowTag, colTag, out cellTag);
+                    string cellText = "";
+                    ufSession.Tabnot.AskEvaluatedCellText(cellTag, out cellText);
+                    if (!string.IsNullOrEmpty(cellText))
+                    {
+                        lw.WriteLine("     Row: " + (r + 1) + " Col: " + (c + 1) + "  " + cellText);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Bỏ qua nếu có lỗi ở ô hiện tại.
+                }
+            }
+        }
+    }
+    
+    public static int GetUnloadOption(string dummy)
+    {
+        return (int)Session.LibraryUnloadOption.Immediately;
+    }
+}
+
+______________
+
+Duyệt Tabular note
+using System;
+using NXOpen;
+using NXOpen.UF;
+
+public class ReportTextOfEachCellInEachTabularNote
+{
+    static Session theSession = Session.GetSession();
+    static UFSession theUFSession = UFSession.GetUFSession();
+    static Part workPart = theSession.Parts.Work;
+
+    public static void Main()
+    {
+        Tag theTabNote = Tag.Null;
+
+        do
+        {
+            theTabNote = GetNextTabularNote(theTabNote);
+
+            if (theTabNote.Equals(Tag.Null))
+            {
+                return;
+            }
+
+            Echo("Found a Tabular Note: " + theTabNote.ToString());
+
+            ProcessTheNote(theTabNote);
+
+        } while (!theTabNote.Equals(Tag.Null));
+    }
+
+    public static void ProcessTheNote(Tag tn)
+    {
+        int sectionCount = 0;
+        // Retrieve the number of sections.
+        theUFSession.Tabnot.AskNmSections(tn, out sectionCount);
+        Echo("  Sections: " + sectionCount);
+
+        int numRows = 0, numCols = 0;
+        // Retrieve the number of rows and columns.
+        theUFSession.Tabnot.AskNmRows(tn, out numRows);
+        theUFSession.Tabnot.AskNmColumns(tn, out numCols);
+        Echo("  Rows: " + numRows + "  Columns: " + numCols);
+
+        Tag rowTag = Tag.Null;
+        Tag colTag = Tag.Null;
+        Tag theCell = Tag.Null;
+
+        for (int r = 0; r < numRows; r++)
+        {
+            for (int c = 0; c < numCols; c++)
+            {
+                try
+                {
+                    // Get the current row and column tags.
+                    theUFSession.Tabnot.AskNthRow(tn, r, out rowTag);
+                    theUFSession.Tabnot.AskNthColumn(tn, c, out colTag);
+                    theUFSession.Tabnot.AskCellAtRowCol(rowTag, colTag, out theCell);
+
+                    string cellText = "";
+                    theUFSession.Tabnot.AskEvaluatedCellText(theCell, out cellText);
+
+                    // Only report cells with text.
+                    if (cellText.Length > 0)
+                    {
+                        Echo("     Row: " + (r + 1) + " Col: " + (c + 1) + "  " + cellText);
+                    }
+                }
+                catch (Exception)
+                {
+                    // Swallow any exceptions.
+                }
+            }
+        }
+    }
+
+    public static Tag GetNextTabularNote(Tag tabNote)
+    {
+        do
+        {
+            // Cycle through objects in the part to get a tabular note.
+            theUFSession.Obj.CycleObjsInPart(workPart.Tag, UFConstants.UF_tabular_note_type, ref tabNote);
+            if (tabNote.Equals(Tag.Null))
+            {
+                return tabNote;
+            }
+
+            int t = 0, st = 0;
+            theUFSession.Obj.AskTypeAndSubtype(tabNote, out t, out st);
+            if (st.Equals(UFConstants.UF_tabular_note_subtype))
+            {
+                return tabNote;
+            }
+
+        } while (!tabNote.Equals(Tag.Null));
+
+        return tabNote;
+    }
+
+    public static void Echo(string output)
+    {
+        theSession.ListingWindow.Open();
+        theSession.ListingWindow.WriteLine(output);
+        theSession.LogFile.WriteLine(output);
+    }
+
+        public static int GetUnloadOption(string dummy)
+        {
+            return (int)Session.LibraryUnloadOption.Immediately;
+        }
+}
+
+*********************** Duyệt Sheet
+using System;
+using NXOpen;
+using NXOpen.Drawings;
+
+public class ListAllSheets
+{
+    public static void Main(string[] args)
+    {
+        // Lấy phiên làm việc hiện hành và Part đang hoạt động
+        Session theSession = Session.GetSession();
+        Part workPart = theSession.Parts.Work;
+
+        // Mở cửa sổ Listing để ghi thông tin
+        ListingWindow lw = theSession.ListingWindow;
+        lw.Open();
+        
+        lw.WriteLine("Danh sách tên các Sheet trong Part:");
+
+        // Duyệt qua tất cả các Drawing Sheet
+        foreach (DrawingSheet sheet in workPart.DrawingSheets)
+        {
+            // Ép kiểu sang DraftingDrawingSheet để lấy tên sheet
+            DraftingDrawingSheet draftingSheet = sheet as DraftingDrawingSheet;
+            if (draftingSheet != null)
+            {
+                string sheetName = draftingSheet.Name;
+                lw.WriteLine("Sheet: " + sheetName);
+            }
+        }
+    }
+}
+************** Current Sheet
+using System;
+using NXOpen;
+using NXOpen.Drawings;
+
+public class ListAndFindCurrentSheet
+{
+    public static void Main(string[] args)
+    {
+        // Lấy phiên làm việc hiện hành và Part đang hoạt động
+        Session theSession = Session.GetSession();
+        Part workPart = theSession.Parts.Work;
+
+        // Mở cửa sổ Listing để ghi thông tin
+        ListingWindow lw = theSession.ListingWindow;
+        lw.Open();
+        lw.WriteLine("Danh sách tên các Sheet trong Part:");
+
+        // Duyệt qua tất cả các Drawing Sheet
+        foreach (DrawingSheet sheet in workPart.DrawingSheets)
+        {
+            DraftingDrawingSheet draftingSheet = sheet as DraftingDrawingSheet;
+            if (draftingSheet != null)
+            {
+                lw.WriteLine("Sheet: " + draftingSheet.Name);
+            }
+        }
+
+        // Kiểm tra và hiển thị tên Sheet hiện tại
+        DrawingSheet currentDrawingSheet = workPart.DrawingSheets.CurrentDrawingSheet;
+        if (currentDrawingSheet != null)
+        {
+            DraftingDrawingSheet draftingCurrentSheet = currentDrawingSheet as DraftingDrawingSheet;
+            if (draftingCurrentSheet != null)
+            {
+                lw.WriteLine("\nSheet hiện tại: " + draftingCurrentSheet.Name);
+                
+            }
+        }
+        else
+        {
+            lw.WriteLine("\nKhông có Sheet hiện tại.");
+        }
+    }
+}
+
+**************** Duyệt Tabular
+using System;
+using System.Collections.Generic;
+using NXOpen;
+using NXOpen.UF;
+
+public class ExportTabularNotes
+{
+    static Session theSession = Session.GetSession();
+    static UFSession theUfSession = UFSession.GetUFSession();
+    static Part workPart = theSession.Parts.Work;
+
+    public static void Main(string[] args)
+    {
+        ListingWindow lw = theSession.ListingWindow;
+        lw.Open();
+
+        List<Tag> myTabNotes = new List<Tag>();
+        FindTabularNotes(myTabNotes);
+
+        lw.WriteLine("Number of tabular notes found: " + myTabNotes.Count.ToString());
+        lw.WriteLine("");
+
+        // Lặp qua từng tabular note được tìm thấy
+        for (int noteIndex = 0; noteIndex < myTabNotes.Count; noteIndex++)
+        {
+            lw.WriteLine("Tabular note " + noteIndex.ToString() + " info:");
+
+            int numSections = 0;
+            theUfSession.Tabnot.AskNmSections(myTabNotes[noteIndex], out numSections);
+            lw.WriteLine("Number of sections: " + numSections.ToString());
+
+            int numRows = 0;
+            theUfSession.Tabnot.AskNmRows(myTabNotes[noteIndex], out numRows);
+            lw.WriteLine("Number of rows: " + numRows.ToString());
+
+            int numCols = 0;
+            theUfSession.Tabnot.AskNmColumns(myTabNotes[noteIndex], out numCols);
+            lw.WriteLine("Number of columns: " + numCols.ToString());
+            lw.WriteLine("");
+
+            Tag rowTag, colTag, cellTag;
+
+            for (int j = 0; j < numRows; j++)
+            {
+                theUfSession.Tabnot.AskNthRow(myTabNotes[noteIndex], j, out rowTag);
+
+                for (int k = 0; k < numCols; k++)
+                {
+                    theUfSession.Tabnot.AskNthColumn(myTabNotes[noteIndex], k, out colTag);
+                    theUfSession.Tabnot.AskCellAtRowCol(rowTag, colTag, out cellTag);
+
+                    string cellText = "";
+                    theUfSession.Tabnot.AskCellText(cellTag, out cellText);
+
+                    lw.WriteLine("Cell[" + j.ToString() + "," + k.ToString() + "]: " + cellText);
+                }
+                lw.WriteLine("");
+            }
+            lw.WriteLine("--------------------------------------------------");
+            lw.WriteLine("");
+        }
+    }
+
+    public static void FindTabularNotes(List<Tag> tagList)
+    {
+        Tag tmpTabNote = Tag.Null;
+        int NxType;
+        int NxSubtype;
+
+        do
+        {
+            // CycleObjsInPart likely requires a ref parameter for tmpTabNote.
+            theUfSession.Obj.CycleObjsInPart(workPart.Tag, UFConstants.UF_tabular_note_type, ref tmpTabNote);
+            if (tmpTabNote != Tag.Null)
+            {
+                theUfSession.Obj.AskTypeAndSubtype(tmpTabNote, out NxType, out NxSubtype);
+                if (NxSubtype == UFConstants.UF_tabular_note_subtype)
+                {
+                    tagList.Add(tmpTabNote);
+                }
+            }
+        }
+        while (tmpTabNote != Tag.Null);
+    }
+}
+
+
+*********************** Lấy Tabular name
+// NX 12.0.0.27
+// Journal created by JS PC on Wed Feb 26 18:41:42 2025 SE Asia Standard Time
+//
+using System;
+using NXOpen;
+using NXOpen.UF;
+
+public class NXJournal
+{
+    public static void Main(string[] args)
+    {
+        // Lấy phiên làm việc và các Part liên quan
+        Session theSession = Session.GetSession();
+        Part workPart = theSession.Parts.Work;
+        Part displayPart = theSession.Parts.Display;
+     
+        UFSession theUfSession = UFSession.GetUFSession();
+
+
+        Session.UndoMarkId markId1;
+        markId1 = theSession.SetUndoMark(Session.MarkVisibility.Visible, "Start");
+        
+        // Lấy đối tượng TableSection (Tabular Note) dựa theo tên đã record
+        NXOpen.Annotations.TableSection tableSection1 = 
+            (NXOpen.Annotations.TableSection)workPart.Annotations.TableSections.FindObject("ENTITY 165 6 1");
+        
+        // Sử dụng AttributePropertiesBuilder để thiết lập thuộc tính (ví dụ: DataType, Units, Date, ...)
+        NXOpen.NXObject[] objects1 = new NXOpen.NXObject[1];
+        objects1[0] = tableSection1;
+        AttributePropertiesBuilder attributePropertiesBuilder1 = 
+            theSession.AttributeManager.CreateAttributePropertiesBuilder(workPart, objects1, AttributePropertiesBuilder.OperationType.None);
+
+        string objName = "";
+        theUfSession.Obj.AskName(tableSection1.Tag, out objName);
+        if (string.IsNullOrEmpty(objName))
+        {
+            objName = "Unnamed (" + tableSection1.Tag.ToString() + ")";
+        }
+        
+        // Sử dụng cửa sổ Listing để in ra tên của đối tượng
+        ListingWindow lw = theSession.ListingWindow;
+        lw.Open();
+        lw.WriteLine("Tabular Note name: " + objName);
+
+    }
+
+    public static int GetUnloadOption(string dummy)
+    {
+        return (int)Session.LibraryUnloadOption.Immediately;
+    }
+}
+***************** Viết Table name
+// NX 12.0.0.27
+// Journal created by JS PC on Thu Feb 27 14:03:25 2025 SE Asia Standard Time
+//
+using System;
+using NXOpen;
+
+public class NXJournal
+{
+  public static void Main(string[] args)
+  {
+    NXOpen.Session theSession = NXOpen.Session.GetSession();
+    NXOpen.Part workPart = theSession.Parts.Work;
+    NXOpen.Part displayPart = theSession.Parts.Display;
+    // ----------------------------------------------
+    //   Menu: Edit->Properties...
+    // ----------------------------------------------
+    NXOpen.Session.UndoMarkId markId1;
+    markId1 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Visible, "Start");
+    
+    NXOpen.NXObject[] objects1 = new NXOpen.NXObject[1];
+    NXOpen.Annotations.TableSection tableSection1 = (NXOpen.Annotations.TableSection)workPart.Annotations.TableSections.FindObject("ENTITY 165 45 1");
+    objects1[0] = tableSection1;
+    NXOpen.AttributePropertiesBuilder attributePropertiesBuilder1;
+    attributePropertiesBuilder1 = theSession.AttributeManager.CreateAttributePropertiesBuilder(workPart, objects1, NXOpen.AttributePropertiesBuilder.OperationType.None);
+    
+    attributePropertiesBuilder1.IsArray = false;
+    
+    attributePropertiesBuilder1.IsArray = false;
+    
+    attributePropertiesBuilder1.IsArray = false;
+    
+    attributePropertiesBuilder1.DataType = NXOpen.AttributePropertiesBaseBuilder.DataTypeOptions.String;
+    
+    attributePropertiesBuilder1.Units = "MilliMeter";
+    
+    NXOpen.NXObject[] objects2 = new NXOpen.NXObject[1];
+    objects2[0] = tableSection1;
+    NXOpen.ObjectGeneralPropertiesBuilder objectGeneralPropertiesBuilder1;
+    objectGeneralPropertiesBuilder1 = workPart.PropertiesManager.CreateObjectGeneralPropertiesBuilder(objects2);
+    
+    NXOpen.SelectNXObjectList selectNXObjectList1;
+    selectNXObjectList1 = objectGeneralPropertiesBuilder1.SelectedObjects;
+    
+    objectGeneralPropertiesBuilder1.NameLocationSpecified = false;
+    
+    objectGeneralPropertiesBuilder1.Index = 1;
+    
+    NXOpen.NXObject[] objects3 = new NXOpen.NXObject[1];
+    objects3[0] = tableSection1;
+    attributePropertiesBuilder1.SetAttributeObjects(objects3);
+    
+    attributePropertiesBuilder1.Units = "MilliMeter";
+    
+    theSession.SetUndoMarkName(markId1, "Tabular Note Section Properties Dialog");
+    
+    attributePropertiesBuilder1.DateValue.DateItem.Day = NXOpen.DateItemBuilder.DayOfMonth.Day27;
+    
+    attributePropertiesBuilder1.DateValue.DateItem.Month = NXOpen.DateItemBuilder.MonthOfYear.Feb;
+    
+    attributePropertiesBuilder1.DateValue.DateItem.Year = "2025";
+    
+    attributePropertiesBuilder1.DateValue.DateItem.Time = "00:00:00";
+    
+    NXOpen.SelectNXObjectList selectNXObjectList2;
+    selectNXObjectList2 = objectGeneralPropertiesBuilder1.SelectedObjects;
+    
+    NXOpen.Session.UndoMarkId markId2;
+    markId2 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Invisible, "Tabular Note Section Properties");
+    
+    objectGeneralPropertiesBuilder1.Name = "105";
+    
+    theSession.DeleteUndoMark(markId2, null);
+    
+    NXOpen.Session.UndoMarkId markId3;
+    markId3 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Invisible, "Tabular Note Section Properties");
+    
+    NXOpen.Session.UndoMarkId markId4;
+    markId4 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Visible, "Update Attribute Properties");
+    
+    int nErrs1;
+    nErrs1 = theSession.UpdateManager.DoUpdate(markId4);
+    
+    NXOpen.NXObject nXObject1;
+    nXObject1 = objectGeneralPropertiesBuilder1.Commit();
+    
+    NXOpen.Session.UndoMarkId id1;
+    id1 = theSession.GetNewestUndoMark(NXOpen.Session.MarkVisibility.Visible);
+    
+    int nErrs2;
+    nErrs2 = theSession.UpdateManager.DoUpdate(id1);
+    
+    theSession.DeleteUndoMark(markId3, null);
+    
+    theSession.SetUndoMarkName(markId1, "Tabular Note Section Properties");
+    
+    attributePropertiesBuilder1.Destroy();
+    
+    objectGeneralPropertiesBuilder1.Destroy();
+    
+    theSession.DeleteUndoMark(id1, null);
+    
+    // ----------------------------------------------
+    //   Menu: Tools->Journal->Stop Recording
+    // ----------------------------------------------
+    
+  }
+  public static int GetUnloadOption(string dummy) { return (int)NXOpen.Session.LibraryUnloadOption.Immediately; }
+}

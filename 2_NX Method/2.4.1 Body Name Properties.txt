@@ -1,0 +1,68 @@
+using System;
+using NXOpen;
+
+public class NXJournal
+{
+    public static void Main(string[] args)
+    {
+        NXOpen.Session theSession = NXOpen.Session.GetSession();
+        NXOpen.UI ui = NXOpen.UI.GetUI(); // Correct way to get the UI
+        
+        // Use the SelectBody method to select a body from the UI
+        NXOpen.NXObject[] selectedObjects = SelectBody(ui); // Pass UI here
+        
+        if (selectedObjects != null && selectedObjects.Length > 0)
+        {
+            NXOpen.Body body1 = (NXOpen.Body)selectedObjects[0];
+            
+            NXOpen.AttributePropertiesBuilder attributePropertiesBuilder1;
+            attributePropertiesBuilder1 = theSession.AttributeManager.CreateAttributePropertiesBuilder(theSession.Parts.Work, selectedObjects, NXOpen.AttributePropertiesBuilder.OperationType.None);
+                        
+            NXOpen.ObjectGeneralPropertiesBuilder objectGeneralPropertiesBuilder1;
+            objectGeneralPropertiesBuilder1 = theSession.Parts.Work.PropertiesManager.CreateObjectGeneralPropertiesBuilder(selectedObjects);
+            
+            objectGeneralPropertiesBuilder1.Name = "Body Name";
+            
+            objectGeneralPropertiesBuilder1.Commit();
+            
+            objectGeneralPropertiesBuilder1.Destroy();
+        }
+        else
+        {
+        }
+    }
+    
+    public static int GetUnloadOption(string dummy)
+    {
+        return (int)NXOpen.Session.LibraryUnloadOption.Immediately;
+    }
+
+    // Method to select a body interactively from the UI
+    private static NXOpen.NXObject[] SelectBody(NXOpen.UI ui)
+    {
+        NXOpen.NXObject[] objects = null;
+
+        NXOpen.Selection.MaskTriple[] maskArray = new NXOpen.Selection.MaskTriple[1];
+        maskArray[0].Type = NXOpen.UF.UFConstants.UF_solid_type;
+        maskArray[0].Subtype = 0;
+        maskArray[0].SolidBodySubtype = NXOpen.UF.UFConstants.UF_UI_SEL_FEATURE_SOLID_BODY;
+
+        NXOpen.Selection.Response response = ui.SelectionManager.SelectObjects(
+            "Select body", // message
+            "Select a Body", // title
+            NXOpen.Selection.SelectionScope.AnyInAssembly, // scope
+            NXOpen.Selection.SelectionAction.ClearAndEnableSpecific, // action
+            false,  // includeFeatures: choose features and bodies
+            false, // keepHighlighted: don't keep highlighted
+            maskArray, // mask array
+            out objects // return selected objects
+        );
+
+        if (response == NXOpen.Selection.Response.Ok)
+        {
+            return objects;
+        }
+
+        return null; // return null if no object was selected
+    }
+}

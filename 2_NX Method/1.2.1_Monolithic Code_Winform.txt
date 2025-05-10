@@ -1,0 +1,90 @@
+using System;
+using System.Windows.Forms;
+using NXOpen;
+
+public class FormApp : Form
+{
+    private NXOpen.Session theSession;
+    private NXOpen.UI theUI;
+    private Button btnTranslucencyOn;
+    private Button btnOpenListing;
+    private Label lblMessage;
+
+    public FormApp()
+    {
+        // Lấy session và UI từ NXOpen
+        theSession = NXOpen.Session.GetSession();
+        theUI = NXOpen.UI.GetUI();
+        
+        InitializeComponent();
+    }
+
+    private void InitializeComponent()
+    {
+        btnTranslucencyOn = new Button();
+        btnOpenListing = new Button();
+        lblMessage = new Label();
+
+        btnTranslucencyOn.Location = new System.Drawing.Point(100, 50);
+        btnTranslucencyOn.Name = "btnTranslucencyOn";
+        btnTranslucencyOn.Size = new System.Drawing.Size(120, 23);
+        btnTranslucencyOn.Text = "Translucency On";
+        btnTranslucencyOn.Click += new EventHandler(HandleButtonClick);
+
+        btnOpenListing.Location = new System.Drawing.Point(100, 100);
+        btnOpenListing.Name = "btnOpenListing";
+        btnOpenListing.Size = new System.Drawing.Size(120, 23);
+        btnOpenListing.Text = "Open Listing";
+        btnOpenListing.Click += new EventHandler(HandleOpenListingClick);
+
+        lblMessage.Location = new System.Drawing.Point(100, 150);
+        lblMessage.Name = "lblMessage";
+        lblMessage.Size = new System.Drawing.Size(200, 23);
+        lblMessage.Text = "Message";
+
+        ClientSize = new System.Drawing.Size(284, 261);
+        Controls.Add(btnTranslucencyOn);
+        Controls.Add(btnOpenListing);
+        Controls.Add(lblMessage);
+        Name = "FormApp";
+        Text = "FormApp";
+    }
+
+    private void HandleButtonClick(object sender, EventArgs e)
+    {
+        HandleTranslucency(false);
+        lblMessage.Text = "Translucency Off!";
+    }
+
+    private void HandleOpenListingClick(object sender, EventArgs e)
+    {
+        OpenListing();  //
+        lblMessage.Text = "Open Listing clicked!";
+    }
+
+    private void HandleTranslucency(bool value)
+    {
+        theUI.VisualizationVisualPreferences.Translucency = value;
+    }
+
+    private void OpenListing()
+    {
+        NXOpen.ListingWindow lw = theSession.ListingWindow;
+        lw.Open();
+        lw.WriteLine("Hello NX!");
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Tạo và chạy FormApp
+        Application.Run(new FormApp());
+    }
+
+    public static int GetUnloadOption(string dummy) 
+    {
+        return (int)NXOpen.Session.LibraryUnloadOption.Immediately; 
+    }
+}

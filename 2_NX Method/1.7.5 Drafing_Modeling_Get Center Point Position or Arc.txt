@@ -1,0 +1,77 @@
+using System;
+using NXOpen;
+using NXOpen.UF;
+
+namespace NXArcCenter
+{
+    public class Program
+    {
+        static Session theSession = Session.GetSession();
+        static Part workPart = theSession.Parts.Work;
+        static UFSession ufs = UFSession.GetUFSession();
+
+        public static void Main(string[] args)
+        {
+            ListingWindow lw = theSession.ListingWindow;
+            lw.Open();
+
+            NXOpen.Arc myArc = null;
+            NXObject selObj;
+
+            // Lặp lại cho đến khi người dùng hủy thao tác chọn
+            while (SelectAnArc("Select an arc", out selObj) != Selection.Response.Cancel)
+            {
+                myArc = selObj as NXOpen.Arc;
+                if (myArc != null)
+                {
+                    // Sử dụng hàm GetArcCenter để lấy tọa độ tâm
+                    Point3d center = GetArcCenter(myArc);
+                    lw.WriteLine("Center: " + center.ToString());
+                    lw.WriteLine("");
+                }
+            }
+
+            lw.Close();
+        }
+
+        // Hàm lấy tọa độ tâm của cung (arc)
+        static Point3d GetArcCenter(NXOpen.Arc arc)
+        {
+            return arc.CenterPoint;
+        }
+
+        // Hàm cho phép chọn một arc từ màn hình
+        static Selection.Response SelectAnArc(string prompt, out NXObject selObj)
+        {
+            selObj = null;
+            UI theUI = UI.GetUI();
+            string title = "Select an Arc";
+            bool includeFeatures = false;
+            bool keepHighlighted = false;
+            Selection.SelectionAction selAction = Selection.SelectionAction.ClearAndEnableSpecific;
+            Point3d cursor;
+            Selection.SelectionScope scope = Selection.SelectionScope.WorkPart;
+
+            Selection.MaskTriple[] selectionMask_array = new Selection.MaskTriple[1];
+            selectionMask_array[0] = new Selection.MaskTriple();
+            selectionMask_array[0].Type = UFConstants.UF_circle_type;
+            selectionMask_array[0].Subtype = 0;
+
+            Selection.Response resp = theUI.SelectionManager.SelectObject(
+                prompt,
+                title,
+                scope,
+                selAction,
+                includeFeatures,
+                keepHighlighted,
+                selectionMask_array,
+                out selObj,
+                out cursor);
+
+            if (resp == Selection.Response.ObjectSelected || resp == Selection.Response.ObjectSelectedByName)
+                return Selection.Response.Ok;
+            else
+                return Selection.Response.Cancel;
+        }
+    }
+}

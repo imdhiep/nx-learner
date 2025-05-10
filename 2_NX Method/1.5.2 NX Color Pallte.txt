@@ -1,0 +1,191 @@
+using System;
+using System.Collections.Generic;
+using System.Drawing;
+using System.IO;
+using System.Windows.Forms;
+
+namespace ColorPallate
+{
+    public static class Program
+    {
+        [STAThread]
+        public static void Main()
+        {
+            Application.EnableVisualStyles();
+            Application.SetCompatibleTextRenderingDefault(false);
+            Application.Run(new ColorForm());
+        }
+    }
+
+    public class ColorForm : Form
+    {
+        private const int numColumns = 12;
+        private const int numRows = 18;
+        private const int cellSize = 18;
+        private const int gap = 1;
+        private const int groupLabelHeight = 20;
+        private const int groupLabelGap = 2;
+        private Panel[,] swatches = new Panel[numRows, numColumns];
+        private Dictionary<int, Color> colorDict = new Dictionary<int, Color>();
+        private TextBox textBoxID;
+        private Panel selectedPanel = null;
+
+        public ColorForm()
+        {
+            this.Text = "Color Pallet";
+            this.StartPosition = FormStartPosition.CenterScreen;
+            this.FormBorderStyle = FormBorderStyle.FixedDialog;
+            this.MaximizeBox = false;
+            this.MinimizeBox = false;
+
+            textBoxID = new TextBox();
+            textBoxID.Width /= 2;
+            this.Controls.Add(textBoxID);
+
+            CreateSwatchesAndGroupLabels();
+            LoadData();
+        }
+
+        private void CreateSwatchesAndGroupLabels()
+        {
+            int startX = 10;
+            int currentY = 5;
+            int globalRowIndex = 0;
+            string[] groupNames = { "Gray", "Principal", "Vibrant", "Neutral", "Dark", "Light" };
+            int[] groupRowCounts = { 1, 1, 4, 4, 4, 4 };
+
+            for (int g = 0; g < groupNames.Length; g++)
+            {
+                Label groupLabel = new Label();
+                groupLabel.Text = groupNames[g];
+                groupLabel.AutoSize = true;
+                groupLabel.Location = new Point(startX - 3, currentY + 5);
+                this.Controls.Add(groupLabel);
+
+                currentY += groupLabelHeight + groupLabelGap;
+
+                for (int r = 0; r < groupRowCounts[g]; r++)
+                {
+                    for (int col = 0; col < numColumns; col++)
+                    {
+                        Panel sw = new Panel();
+                        sw.Width = cellSize;
+                        sw.Height = cellSize;
+                        int x = startX + col * (cellSize + gap);
+                        sw.Location = new Point(x, currentY);
+                        sw.BackColor = Color.White;
+                        sw.Tag = null;
+                        sw.Click += new EventHandler(Swatch_Click);
+                        sw.Paint += new PaintEventHandler(Swatch_Paint);
+                        this.Controls.Add(sw);
+                        swatches[globalRowIndex, col] = sw;
+                    }
+                    globalRowIndex++;
+                    currentY += cellSize + gap;
+                }
+            }
+
+            int formWidth = (numColumns * cellSize) + ((numColumns - 1) * gap) + 20;
+            int formHeight = currentY + 30;
+            this.ClientSize = new Size(formWidth, formHeight);
+
+            textBoxID.Location = new Point(10, formHeight - 25);
+        }
+
+        private void Swatch_Paint(object sender, PaintEventArgs e)
+        {
+            Panel sw = sender as Panel;
+            Rectangle rect = sw.ClientRectangle;
+            if (sw == selectedPanel)
+            {
+                ControlPaint.DrawBorder3D(e.Graphics, rect, Border3DStyle.Raised);
+                using (Pen redPen = new Pen(Color.Red, 2))
+                {
+                    e.Graphics.DrawRectangle(redPen, 1, 1, sw.Width - 2, sw.Height - 2);
+                }
+            }
+            else
+            {
+                ControlPaint.DrawBorder3D(e.Graphics, rect, Border3DStyle.Sunken);
+            }
+        }
+
+        private void Swatch_Click(object sender, EventArgs e)
+        {
+            Panel sw = sender as Panel;
+            if (sw != null && sw.Tag != null)
+            {
+                if (selectedPanel != null)
+                {
+                    selectedPanel.Invalidate();
+                }
+                selectedPanel = sw;
+                selectedPanel.Invalidate();
+                textBoxID.Text = sw.Tag.ToString();
+            }
+        }
+
+        private void LoadData()
+        {
+            string fileColorID = @"E:\UG-CODE1\0 Code Libary\cs\Develop\General_PartList2\Material map\ColorID.csv";
+            string fileColorPallete = @"E:\UG-CODE1\0 Code Libary\cs\Develop\General_PartList2\Material map\ColorPallete.csv";
+
+            if (!File.Exists(fileColorID))
+            {
+                MessageBox.Show("Color ID File not exist");
+                return;
+            }
+            if (!File.Exists(fileColorPallete))
+            {
+                MessageBox.Show("Pallate file not exist");
+                return;
+            }
+
+            LoadColorDictionary(fileColorID);
+            LoadMatrix(fileColorPallete);
+        }
+
+        private void LoadColorDictionary(string filePath)
+        {
+            string[] lines = File.ReadAllLines(filePath);
+            for (int i = 1; i < lines.Length; i++)
+            {
+                string[] parts = lines[i].Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length >= 4)
+                {
+                    int id, r, g, b;
+                    if (int.TryParse(parts[0].Trim(), out id) &&
+                        int.TryParse(parts[1].Trim(), out r) &&
+                        int.TryParse(parts[2].Trim(), out g) &&
+                        int.TryParse(parts[3].Trim(), out b))
+                    {
+                        colorDict[id] = Color.FromArgb(r, g, b);
+                    }
+                }
+            }
+        }
+
+        private void LoadMatrix(string filePath)
+        {
+            string[] lines = File.ReadAllLines(filePath);
+            for (int row = 0; row < numRows; row++)
+            {
+                string[] parts = lines[row].Split(new char[] { ',' }, StringSplitOptions.RemoveEmptyEntries);
+                if (parts.Length < numColumns)
+                {
+                    parts = lines[row].Split(new char[] { '\t' }, StringSplitOptions.RemoveEmptyEntries);
+                }
+                for (int col = 0; col < numColumns; col++)
+                {
+                    int id;
+                    if (int.TryParse(parts[col].Trim(), out id))
+                    {
+                        swatches[row, col].Tag = id;
+                        swatches[row, col].BackColor = colorDict.ContainsKey(id) ? colorDict[id] : Color.Black;
+                        swatches[row, col].Invalidate();
+                    }
+                }
+            }
+        }
+    }
+}

@@ -1,0 +1,23 @@
+1. Kiến trúc cấp cao
+#Layered Architecture (Phân lớp):
+
+Đây là kiến trúc mà code của bạn hiện tại đang sử dụng. Nó tách biệt rõ ràng giữa Presentation Layer, Business Logic Layer và Data Access Layer.
+Ưu điểm: Dễ hiểu, dễ bảo trì với dự án quy mô nhỏ đến vừa.
+Nhược điểm: Khi hệ thống phức tạp hơn, việc phụ thuộc giữa các lớp có thể làm giảm tính linh hoạt.
+
+#Model-View-Presenter (MVP):
+
+Rất phù hợp với ứng dụng Windows Forms (HMI) vì giúp tách biệt rõ ràng giữa giao diện và logic xử lý, làm cho việc kiểm thử giao diện trở nên dễ dàng hơn.
+Ưu điểm: Tăng tính kiểm thử (unit test) và bảo trì của giao diện; giảm sự phụ thuộc của view vào logic nghiệp vụ.
+
+#Clean Architecture / Hexagonal Architecture:
+
+Đây là mô hình hướng domain, nhấn mạnh sự độc lập giữa logic nghiệp vụ và các phụ thuộc bên ngoài (như giao diện, hệ thống file, phần cứng,…).
+Ưu điểm: Linh hoạt cao, khả năng mở rộng tốt, dễ thay thế hoặc cập nhật các thành phần (ví dụ, thay đổi từ file XML sang cơ sở dữ liệu hay chuyển giao diện người dùng).
+Nhược điểm: Có thể phức tạp khi triển khai ban đầu và đòi hỏi sự hiểu biết sâu sắc về các nguyên tắc SOLID và Dependency Inversion.
+
+#Model-View-ViewModel (MVVM):
+
+Thường được sử dụng với WPF, nhưng cũng có thể áp dụng cho các nền tảng khác nếu bạn sử dụng công nghệ hỗ trợ binding mạnh mẽ.
+Ưu điểm: Tăng tính tái sử dụng và kiểm thử của logic giao diện.
+Nhược điểm: Yêu cầu một chút học hỏi và thay đổi so với cách xây dựng UI truyền thống.

@@ -1,0 +1,43 @@
+using System;
+using NXOpen;
+
+public class NXJournal
+{
+    public static void Main(string[] args)
+    {
+        // Lấy đối tượng Session từ NX
+        NXOpen.Session theSession = NXOpen.Session.GetSession();
+        // Lấy đối tượng Part làm việc (Part đang mở trong NX)
+        NXOpen.Part workPart = theSession.Parts.Work;
+
+        // Bắt đầu Undo Mark, giúp có thể hoàn tác lại các thao tác nếu cần
+        NXOpen.Session.UndoMarkId markId1 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Visible, "Hide All Bodies");
+
+        // Lấy tất cả các body có trong Part hiện tại
+        NXOpen.Body[] allBodies = workPart.Bodies.ToArray();
+        
+        // Tạo một mảng DisplayableObject để chứa tất cả các bodies
+        NXOpen.DisplayableObject[] objectsToHide = new NXOpen.DisplayableObject[allBodies.Length];
+        
+        // Duyệt qua tất cả các body và thêm chúng vào mảng objectsToHide
+        for (int i = 0; i < allBodies.Length; i++)
+        {
+            objectsToHide[i] = allBodies[i]; // Thêm body vào mảng
+        }
+
+        // Thực hiện ẩn tất cả các body
+        theSession.DisplayManager.BlankObjects(objectsToHide);
+        
+        // Fit lại view sau khi ẩn các đối tượng
+        workPart.ModelingViews.WorkView.FitAfterShowOrHide(NXOpen.View.ShowOrHideType.HideOnly);
+
+        // Kết thúc Undo Mark
+        theSession.DeleteUndoMark(markId1, null);
+    }
+
+    // Hàm này trả về lựa chọn tải thư viện khi cần thiết
+    public static int GetUnloadOption(string dummy) 
+    {
+        return (int)NXOpen.Session.LibraryUnloadOption.Immediately; // Thư viện sẽ được tải ngay lập tức sau khi sử dụng
+    }
+}

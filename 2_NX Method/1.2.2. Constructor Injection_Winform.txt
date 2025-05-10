@@ -1,0 +1,115 @@
+using System;
+using System.Windows.Forms;
+using NXOpen;
+
+public class FormApp : Form
+{
+    private readonly App app; // injection class thực thi vào form
+    private Button btnTranslucencyOn;
+    private Button btnOpenListing;
+    private Label lblMessage;
+
+    public FormApp(App app)
+    {
+        if (app == null)
+            throw new ArgumentNullException("app không được null.");
+        
+        this.app = app;
+        InitializeComponent();
+    }
+
+    private void InitializeComponent()
+    {
+        btnTranslucencyOn = new Button();
+        btnOpenListing = new Button();
+        lblMessage = new Label();
+
+        btnTranslucencyOn.Location = new System.Drawing.Point(100, 50);
+        btnTranslucencyOn.Name = "btnTranslucencyOn";
+        btnTranslucencyOn.Size = new System.Drawing.Size(120, 23);
+        btnTranslucencyOn.Text = "Translucency On";
+        btnTranslucencyOn.Click += new EventHandler(HandleButtonClick);
+
+        btnOpenListing.Location = new System.Drawing.Point(100, 100);
+        btnOpenListing.Name = "btnOpenListing";
+        btnOpenListing.Size = new System.Drawing.Size(120, 23);
+        btnOpenListing.Text = "Open Listing";
+        btnOpenListing.Click += new EventHandler(HandleOpenListingClick);
+
+        lblMessage.Location = new System.Drawing.Point(100, 150);
+        lblMessage.Name = "lblMessage";
+        lblMessage.Size = new System.Drawing.Size(200, 23);
+        lblMessage.Text = "Message";
+
+        ClientSize = new System.Drawing.Size(284, 261);
+        Controls.Add(btnTranslucencyOn);
+        Controls.Add(btnOpenListing);
+        Controls.Add(lblMessage);
+        Name = "FormApp";
+        Text = "FormApp";
+    }
+
+    private void HandleButtonClick(object sender, EventArgs e)
+    {
+        app.HandleTranslucency(false);
+        lblMessage.Text = "Translucency Off!";
+    }
+
+    private void HandleOpenListingClick(object sender, EventArgs e)
+    {
+        app.OpenListing();
+        lblMessage.Text = "Open Listing clicked!";
+    }
+}
+
+// Lớp thực thi công việc NXOpen
+public class App
+{
+    private NXOpen.Session theSession;
+    private NXOpen.UI theUI;
+
+    public App(NXOpen.Session session, NXOpen.UI ui) //Constructor lớp thực thi
+    {
+        if (session == null)	// Có thể xóa bỏ nếu chắ chắn luôn trả về non-null
+            throw new ArgumentNullException("session");
+        if (ui == null)
+            throw new ArgumentNullException("ui");
+
+        theSession = session;
+        theUI = ui;
+    }
+
+    public void HandleTranslucency(bool value)
+    {
+        theUI.VisualizationVisualPreferences.Translucency = value;
+    }
+
+    public void OpenListing()
+    {
+        NXOpen.ListingWindow lw = theSession.ListingWindow;
+        lw.Open();
+        lw.WriteLine("Hello NX!");
+    }
+}
+
+public class Program
+{
+    public static void Main(string[] args)
+    {
+        // Lấy session và UI từ NXOpen
+        NXOpen.Session session = NXOpen.Session.GetSession();
+
+	   NXOpen.UI ui = NXOpen.UI.GetUI();
+
+        // Khởi tạo lớp App và truyền vào Form
+        App app = new App(session, ui);
+
+        // Inject App vào FormApp
+        Application.Run(new FormApp(app));
+    }
+
+    public static int GetUnloadOption(string dummy) 
+    {
+        return (int)NXOpen.Session.LibraryUnloadOption.Immediately; 
+    }
+}
