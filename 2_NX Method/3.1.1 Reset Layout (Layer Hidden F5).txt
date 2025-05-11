@@ -1,0 +1,23 @@
+using System;
+using NXOpen;
+
+public class NXJournal
+{
+  public static void Main(string[] args)
+  {
+    NXOpen.Session theSession = NXOpen.Session.GetSession();
+    NXOpen.Part workPart = theSession.Parts.Work;
+    NXOpen.Part displayPart = theSession.Parts.Display;
+
+    
+    NXOpen.Layout layout1 = (NXOpen.Layout)workPart.Layouts.FindObject("L1");
+    NXOpen.ModelingView modelingView1 = (NXOpen.ModelingView)workPart.ModelingViews.FindObject("#Active1");
+    layout1.ReplaceView(workPart.ModelingViews.WorkView, modelingView1, true);
+    
+    
+    NXOpen.ModelingView modelingView2 = (NXOpen.ModelingView)workPart.ModelingViews.FindObject("Trimetric");
+    layout1.ReplaceView(modelingView1, modelingView2, true);
+    
+  }
+  public static int GetUnloadOption(string dummy) { return (int)NXOpen.Session.LibraryUnloadOption.Immediately; }
+}

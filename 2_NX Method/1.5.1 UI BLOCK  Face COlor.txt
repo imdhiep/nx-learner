@@ -1,0 +1,325 @@
+using System;
+using NXOpen;
+using NXOpen.BlockStyler;
+using System.Collections.Generic;
+
+public class cNXEditFaceColor
+{
+    // REPLACE THIS PATH WITH THE LOCATION OF THE DLX FILE:
+    // --------------------------------------------------------
+    public static string JournalDirectory = "E:\\UG-CODE\\Color";
+    // --------------------------------------------------------
+
+    public static Session session = Session.GetSession();
+    public static UI theUI = UI.GetUI();
+
+    public static TaggedObject[] SelectedObjects;
+    public static List<Face> SelectedFacesLst = new List<Face>();
+
+    public static void Main()
+    {
+        NXEditFaceColor theNXTangentFacesColor = null;
+
+        try
+        {
+            theNXTangentFacesColor = new NXEditFaceColor();
+            theNXTangentFacesColor.Show();
+        }
+        catch (Exception ex)
+        {
+            theUI.NXMessageBox.Show("Block Styler", NXMessageBox.DialogType.Error, ex.ToString());
+        }
+        finally
+        {
+            if (theNXTangentFacesColor != null)
+            {
+                theNXTangentFacesColor.Dispose();
+                theNXTangentFacesColor = null;
+            }
+        }
+    }
+
+    public static void DetectColorMultiple()
+    {
+        bool bMixed = false;
+        int[] valuevector = new int[1];
+
+        CreateFaceList(NXEditFaceColor.face_select0);
+
+        if (SelectedFacesLst.Count > 0)
+        {
+            for (int i = 0; i < SelectedFacesLst.Count; i++)
+            {
+                if (SelectedFacesLst[i].Color != SelectedFacesLst[0].Color)
+                {
+                    bMixed = true;
+                    break;
+                }
+            }
+
+            if (!bMixed)
+            {
+                valuevector[0] = SelectedFacesLst[0].Color;
+            }
+            else // color is mixed, so set default color value.
+            {
+                valuevector[0] = 0;
+            }
+
+            NXEditFaceColor.colorPicker0.GetProperties().SetIntegerVector("Value", valuevector);
+        }
+    }
+
+    public static void DetectColorSingle()
+    {
+        int[] valuevector = new int[1];
+
+        CreateFaceList(NXEditFaceColor.face_select01);
+
+        if (SelectedFacesLst.Count == 1)
+        {
+            valuevector[0] = SelectedFacesLst[0].Color;
+            NXEditFaceColor.colorPicker0.GetProperties().SetIntegerVector("Value", valuevector);
+        }
+    }
+
+    public static void ApplyColor()
+    {
+        DisplayModification displayModification1 = session.DisplayManager.NewDisplayModification();
+        displayModification1.ApplyToAllFaces = true;
+        displayModification1.ApplyToOwningParts = false;
+        int[] color = NXEditFaceColor.colorPicker0.GetProperties().GetIntegerVector("Value");
+
+        try
+        {
+            displayModification1.NewColor = color[0];
+        }
+        catch (Exception)
+        {
+        }
+
+        CreateFaceList(NXEditFaceColor.face_select0);
+
+        DisplayableObject[] FacesToEdit = new DisplayableObject[SelectedFacesLst.Count];
+        for (int i = 0; i < SelectedFacesLst.Count; i++)
+        {
+            FacesToEdit[i] = SelectedFacesLst[i];
+        }
+
+        displayModification1.Apply(FacesToEdit);
+        displayModification1.Dispose();
+    }
+
+    public static void CreateFaceList(UIBlock inFaceCollector)
+    {
+        SelectedObjects = inFaceCollector.GetProperties().GetTaggedObjectVector("SelectedObjects");
+
+        SelectedFacesLst.Clear();
+        foreach (TaggedObject obj in SelectedObjects)
+        {
+            SelectedFacesLst.Add((Face)obj);
+        }
+    }
+}
+
+public class NXEditFaceColor
+{
+    // class members
+    public static string theDlxFileName;
+    public static NXOpen.BlockStyler.BlockDialog theDialog;
+
+    public static UIBlock face_select0; // Block type: Face Collector
+    private UIBlock group0; // Block type: Group
+    public static UIBlock colorPicker0; // Block type: Color Picker
+    public static UIBlock face_select01; // Block type: Face Collector
+    private UIBlock group; // Block type: Group
+    private UIBlock group1; // Block type: Group
+
+    // Bit Option for Property: EntityType
+    public static readonly int EntityType_AllowFaces = 16;
+    public static readonly int EntityType_AllowDatums = 32;
+    public static readonly int EntityType_AllowBodies = 64;
+
+    // Bit Option for Property: FaceRules
+    public static readonly int FaceRules_SingleFace = 1;
+    public static readonly int FaceRules_RegionFaces = 2;
+    public static readonly int FaceRules_TangentFaces = 4;
+    public static readonly int FaceRules_TangentRegionFaces = 8;
+    public static readonly int FaceRules_BodyFaces = 16;
+    public static readonly int FaceRules_FeatureFaces = 32;
+    public static readonly int FaceRules_AdjacentFaces = 64;
+    public static readonly int FaceRules_ConnectedBlendFaces = 128;
+    public static readonly int FaceRules_AllBlendFaces = 256;
+    public static readonly int FaceRules_RibFaces = 512;
+    public static readonly int FaceRules_SlotFaces = 1024;
+    public static readonly int FaceRules_BossandPocketFaces = 2048;
+    public static readonly int FaceRules_MergedRibFaces = 4096;
+    public static readonly int FaceRules_RegionBoundaryFaces = 8192;
+    public static readonly int FaceRules_FaceandAdjacentFaces = 16384;
+
+    #region "Block Styler Dialog Designer generator code"
+    // Constructor for NX Styler class
+    public NXEditFaceColor()
+    {
+        try
+        {
+            theDlxFileName = cNXEditFaceColor.JournalDirectory + "\\NXEditFaceColor.dlx";
+            theDialog = cNXEditFaceColor.theUI.CreateDialog(theDlxFileName);
+            theDialog.AddApplyHandler(apply_cb);
+            theDialog.AddOkHandler(ok_cb);
+            theDialog.AddUpdateHandler(update_cb);
+            theDialog.AddInitializeHandler(initialize_cb);
+            theDialog.AddDialogShownHandler(dialogShown_cb);
+        }
+        catch (Exception ex)
+        {
+            throw ex;
+        }
+    }
+    #endregion
+
+    public static void Main()
+    {
+        NXEditFaceColor theNXTangentFacesColor = null;
+        try
+        {
+            theNXTangentFacesColor = new NXEditFaceColor();
+            theNXTangentFacesColor.Show();
+        }
+        catch (Exception ex)
+        {
+            cNXEditFaceColor.theUI.NXMessageBox.Show("Block Styler", NXMessageBox.DialogType.Error, ex.ToString());
+        }
+        finally
+        {
+            if (theNXTangentFacesColor != null)
+            {
+                theNXTangentFacesColor.Dispose();
+                theNXTangentFacesColor = null;
+            }
+        }
+    }
+
+    public static int GetUnloadOption(string arg)
+    {
+        return (int)Session.LibraryUnloadOption.Immediately;
+    }
+
+    public static void UnloadLibrary(string arg)
+    {
+        try
+        {
+            // Cleanup logic goes here
+        }
+        catch (Exception ex)
+        {
+            cNXEditFaceColor.theUI.NXMessageBox.Show("Block Styler", NXMessageBox.DialogType.Error, ex.ToString());
+        }
+    }
+
+    public void Show()
+    {
+        try
+        {
+            theDialog.Show();
+        }
+        catch (Exception ex)
+        {
+            cNXEditFaceColor.theUI.NXMessageBox.Show("Block Styler", NXMessageBox.DialogType.Error, ex.ToString());
+        }
+    }
+
+    public void Dispose()
+    {
+        if (theDialog != null)
+        {
+            theDialog.Dispose();
+            theDialog = null;
+        }
+    }
+
+    // Callback functions
+    public void initialize_cb()
+    {
+        try
+        {
+            group1 = (UIBlock)theDialog.TopBlock.FindBlock("group1");
+            face_select0 = (UIBlock)theDialog.TopBlock.FindBlock("face_select0");
+            group0 = (UIBlock)theDialog.TopBlock.FindBlock("group0");
+            colorPicker0 = (UIBlock)theDialog.TopBlock.FindBlock("colorPicker0");
+            group = (UIBlock)theDialog.TopBlock.FindBlock("group");
+            face_select01 = (UIBlock)theDialog.TopBlock.FindBlock("face_select01");
+        }
+        catch (Exception ex)
+        {
+            cNXEditFaceColor.theUI.NXMessageBox.Show("Block Styler", NXMessageBox.DialogType.Error, ex.ToString());
+        }
+    }
+
+    public void dialogShown_cb()
+    {
+        try
+        {
+            face_select0.GetProperties().SetLogical("BlendVirtualCurveOverlay", false);
+            face_select01.GetProperties().SetLogical("BlendVirtualCurveOverlay", false);
+        }
+        catch (Exception ex)
+        {
+            cNXEditFaceColor.theUI.NXMessageBox.Show("Block Styler", NXMessageBox.DialogType.Error, ex.ToString());
+        }
+    }
+
+    public int apply_cb()
+    {
+        int errorCode = 0;
+        try
+        {
+            cNXEditFaceColor.ApplyColor();
+        }
+        catch (Exception ex)
+        {
+            errorCode = 1;
+            cNXEditFaceColor.theUI.NXMessageBox.Show("Block Styler", NXMessageBox.DialogType.Error, ex.ToString());
+        }
+        return errorCode;
+    }
+
+    public int update_cb(UIBlock block)
+    {
+        try
+        {
+            if (block == face_select0)
+            {
+                cNXEditFaceColor.DetectColorMultiple();
+            }
+            else if (block == colorPicker0)
+            {
+                // Handle colorPicker0 logic here
+            }
+            else if (block == face_select01)
+            {
+                cNXEditFaceColor.DetectColorSingle();
+            }
+        }
+        catch (Exception ex)
+        {
+            cNXEditFaceColor.theUI.NXMessageBox.Show("Block Styler", NXMessageBox.DialogType.Error, ex.ToString());
+        }
+        return 0;
+    }
+
+    public int ok_cb()
+    {
+        int errorCode = 0;
+        try
+        {
+            errorCode = apply_cb();
+        }
+        catch (Exception ex)
+        {
+            errorCode = 1;
+            cNXEditFaceColor.theUI.NXMessageBox.Show("Block Styler", NXMessageBox.DialogType.Error, ex.ToString());
+        }
+        return errorCode;
+    }
+}

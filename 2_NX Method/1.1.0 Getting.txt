@@ -1,0 +1,283 @@
+************ Chương trình cơ bản chỉ chạy duy nhất phương thức Main(), tất cả câu lệnh được khai báo trong phương thức Main
+using System;
+using NXOpen;
+
+public class NXJournal
+{
+  public static void Main(string[] args)
+  {
+    Session theSession = Session.GetSession();  //khởi tạo phiên làm việc theSession. Mọi chương trình cần phải khởi tạo
+    Part workPart = theSession.Parts.Work; //Khởi tạo biến lưu trữ workPart. sử dụng khi xử lý đối tượng Parts.
+    Part displayPart = theSession.Parts.Display; //Khởi tạo biến lưu trữ displayPart. sử dụng khi xử lý đối tượng Display.
+
+    // Trong trường hợp chỉ sử dụng ListingWindow, 2 khai báo workPart và displayPart ở trên có thể bỏ qua
+    ListingWindow lw = theSession.ListingWindow; // Tạo biến lw lưu trữ ListingWindow
+    lw.Open();
+    lw.WriteLine("Hello AE");
+    lw.Close();
+  }
+
+  public static int GetUnloadOption(string dummy)  //Phương thức giải phóng tài nguyên. Không có cũng vẫn chạy được nhưng nên sử dụng.
+  {
+    return (int)NXOpen.Session.LibraryUnloadOption.Immediately; 
+  }
+}
+
+******************** Chương trình khai báo các phương thức ngoài Main, sử dung khi có nhiều phương thức
+using System;
+using NXOpen;
+
+public class NXJournal
+{
+  public static void Main(string[] args)
+  {
+    // Khai báo biến lưu trữ đối tượng thuộc class Session: phiên làm việc, part, display, Listingwindow... Chương trình nào cũng sẽ cần.
+    Session theSession = Session.GetSession();
+    Part workPart = theSession.Parts.Work;
+    Part displayPart = theSession.Parts.Display;
+    ListingWindow lw = theSession.ListingWindow;
+
+    // Các phương thức xử lý đối tượng
+    ProgramLw(lw); //phương thức thực hiện trên đối tượng theSession
+  }
+
+// Các phương thức đối tượng được khai báo bên ngoài Main để dễ quản lý
+  public static void ProgramLw(ListingWindow lw) //
+  {
+    lw.Open();
+    lw.WriteLine("Hello AE");
+    lw.Close();
+  }
+
+  public static int GetUnloadOption(string dummy)
+  {
+    return (int)NXOpen.Session.LibraryUnloadOption.Immediately;
+  }
+}
+
+
+******************** Chạy Main nhanh
+using System;
+using System.Windows.Forms;
+
+public class NXJournal : Form // class NXJournal được kế thừa class Form trong thư viện System.Windows.Forms, tương đương Inherits Form trong .vb
+{
+    private Button btnClickMe;
+    private Label lblMessage;
+
+    // Constructor khởi tạo các thuộc tính của Form NXJournal
+    public NXJournal()
+    {
+        // Initialize UI components
+        this.btnClickMe = new Button();
+        this.lblMessage = new Label();
+
+        // Set properties for the button
+        this.btnClickMe.Location = new System.Drawing.Point(100, 50);
+        this.btnClickMe.Name = "btnClickMe";
+        this.btnClickMe.Size = new System.Drawing.Size(75, 23);
+        this.btnClickMe.Text = "Click Me";
+        this.btnClickMe.Click += new EventHandler(this.btnClickMe_Click);
+
+        // Set properties for the label
+        this.lblMessage.Location = new System.Drawing.Point(100, 100);
+        this.lblMessage.Name = "lblMessage";
+        this.lblMessage.Size = new System.Drawing.Size(200, 23);
+        this.lblMessage.Text = "Message";
+
+        // Set properties for the form
+        this.ClientSize = new System.Drawing.Size(284, 261);
+        this.Controls.Add(this.btnClickMe);
+        this.Controls.Add(this.lblMessage);
+        this.Name = "NXJournal";
+        this.Text = "FormMain";
+    }
+
+    // Event handler for the button click
+    private void btnClickMe_Click(object sender, EventArgs e)
+    {
+        this.lblMessage.Text = "Hello from NX!";
+    }
+
+    // Chạy Main
+    public static void Main(string[] args)
+    {
+        Application.Run(new NXJournal());
+    }
+
+  //Phương thức giải phóng tài nguyên của API
+  public static int GetUnloadOption(string dummy) 
+  {
+	return (int)NXOpen.Session.LibraryUnloadOption.Immediately; 
+  }
+}
+
+****************** Chạy Main với chỉ định STA, kiểm tra Session, bật render...
+using System;
+using System.Windows.Forms;
+using NXOpen;
+
+namespace NXOpenWinForms
+{
+    public class FormMain : Form
+    {
+        private Button btnClickMe;
+        private Label lblMessage;
+
+        public FormMain()
+        {
+            // Khởi tạo các thành phần giao diện người dùng
+            this.btnClickMe = new Button();
+            this.lblMessage = new Label();
+
+            // Thiết lập thuộc tính cho button
+            this.btnClickMe.Location = new System.Drawing.Point(100, 50);
+            this.btnClickMe.Name = "btnClickMe";
+            this.btnClickMe.Size = new System.Drawing.Size(75, 23);
+            this.btnClickMe.Text = "Click Me";
+            this.btnClickMe.Click += new EventHandler(this.btnClickMe_Click);
+
+            // Thiết lập thuộc tính cho label
+            this.lblMessage.Location = new System.Drawing.Point(100, 100);
+            this.lblMessage.Name = "lblMessage";
+            this.lblMessage.Size = new System.Drawing.Size(200, 23);
+            this.lblMessage.Text = "Message";
+
+            // Thiết lập thuộc tính cho Form
+            this.ClientSize = new System.Drawing.Size(284, 261);
+            this.Controls.Add(this.btnClickMe);
+            this.Controls.Add(this.lblMessage);
+            this.Name = "FormMain";
+            this.Text = "FormMain";
+        }
+
+        private void btnClickMe_Click(object sender, EventArgs e)
+        {
+            this.lblMessage.Text = "Hello from NX!";
+        }
+
+        [STAThread] //Chỉ định rằng chương trình sử dụng mô hình giao tiếp "Single Threaded Apartment" (STA)
+        public static void RunForm() // Định nghĩa phương thức RunForm để thực hiện kích hoạt giao diện, kiểm tra phiên làm việc với Form, được gọi để chạy ứng dụng
+        {
+            try // Bắt đầu khối xử lý ngoại lệ
+            {
+                Application.EnableVisualStyles(); // Phương thức của System.Windows.Forms.Application, kích hoạt giao diện visual styles
+                Application.SetCompatibleTextRenderingDefault(false); // Phương thức để có thể sử dụng GDI render (true) hoặc vẽ văn bản (false)
+
+                Session theSession = Session.GetSession(); //GetSession() là phương thức tạo đối tượng (phiên làm việc) theSession từ class Session của NX API
+
+	 // Nếu đối tượng theSession được khởi tạo thành công (không phải null) thì thực hiện chạy FormMain()
+	 // GetSession() có thể khởi tạo theSession không thành công (không tạo ra phiên làm việc) khi mà NX chưa mở, hoặc đang ở Application không chứa Session...
+
+                if (theSession != null) 
+                {
+                    Application.Run(new FormMain());
+                }
+            }
+            catch (Exception ex) // Bắt mọi ngoại lệ
+            {
+                MessageBox.Show("Error: {ex.Message}");
+            }
+        }
+        public static int Main(string[] args)
+        {
+            RunForm();
+            return (int)NXOpen.Session.LibraryUnloadOption.Immediately; // Statement giải phóng tài nguyên của API, (ép kiểu ngầm định enum về int trả kết quả cho phương thức Main)
+        }
+    }
+}
+
+***************
+using System;
+using System.Windows.Forms;
+using NXOpen;
+
+// Lớp chính của ứng dụng
+public class TranO
+{
+    // Phương thức chính của ứng dụng
+    public static void Main(string[] args)
+    {
+        Application.Run(new NXJournal());
+    }
+
+    // Phương thức giải phóng tài nguyên của API
+    public static int GetUnloadOption(string dummy)
+    {
+        return (int)NXOpen.Session.LibraryUnloadOption.Immediately;
+    }
+}
+
+// Lớp đại diện cho Form chính của ứng dụng
+public class NXJournal : Form
+{
+    private NXOpen.UI theUI = NXOpen.UI.GetUI();
+    private Button btnClickMe;
+    private Label lblMessage;
+
+    // Constructor khởi tạo giao diện
+    public NXJournal()
+    {
+        InitializeComponent();
+    }
+
+    // Phương thức khởi tạo giao diện
+    private void InitializeComponent()
+    {
+        // Khởi tạo các thành phần UI
+        this.btnClickMe = new Button();
+        this.lblMessage = new Label();
+
+        // Cấu hình cho nút bấm
+        this.btnClickMe.Location = new System.Drawing.Point(100, 50);
+        this.btnClickMe.Name = "btnClickMe";
+        this.btnClickMe.Size = new System.Drawing.Size(75, 23);
+        this.btnClickMe.Text = "Click Me";
+        
+        // Gán sự kiện Click cho nút bấm
+        this.btnClickMe.Click += new EventHandler(this.HandleButtonClick);
+
+        // Cấu hình cho nhãn (Label)
+        this.lblMessage.Location = new System.Drawing.Point(100, 100);
+        this.lblMessage.Name = "lblMessage";
+        this.lblMessage.Size = new System.Drawing.Size(200, 23);
+        this.lblMessage.Text = "Message";
+
+        // Cấu hình cho form
+        this.ClientSize = new System.Drawing.Size(284, 261);
+        this.Controls.Add(this.btnClickMe);
+        this.Controls.Add(this.lblMessage);
+        this.Name = "NXJournal";
+        this.Text = "FormMain";
+    }
+
+    // Phương thức xử lý sự kiện button click
+    private void HandleButtonClick(object sender, EventArgs e)
+    {
+        // Tạo đối tượng App và gọi phương thức HandleTranslucency
+        App app = new App(theUI);
+        app.HandleTranslucency(false);
+
+        // Cập nhật nhãn (Label) với thông điệp mới
+        lblMessage.Text = "Translucency Off!";
+    }
+}
+
+// Lớp App chứa phương thức xử lý Translucency
+public class App
+{
+    private NXOpen.UI theUI;
+
+    // Constructor nhận tham chiếu từ lớp chính
+    public App(NXOpen.UI ui)
+    {
+        theUI = ui;
+    }
+
+    // Phương thức thay đổi thuộc tính Translucency
+    public void HandleTranslucency(bool value)
+    {
+        theUI.VisualizationVisualPreferences.Translucency = value;
+    }
+}
+

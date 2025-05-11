@@ -1,0 +1,4 @@
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\ProfesionalFormplication1\obj\Debug\ProfessionalFormApplication1.csprojResolveAssemblyReference.cache
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\ProfesionalFormplication1\obj\Debug\NXOpenFormApplication1.Properties.Resources.resources
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\ProfesionalFormplication1\obj\Debug\ProfessionalFormApplication1.csproj.GenerateResource.Cache
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\ProfesionalFormplication1\bin\Debug\NXOpenFormApplication1.exe.config

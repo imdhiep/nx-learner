@@ -1,0 +1,21 @@
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\obj\Debug\BasicFormApplication1.csprojResolveAssemblyReference.cache
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\obj\Debug\NXOpenFormApplication1.Properties.Resources.resources
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\obj\Debug\BasicFormApplication1.csproj.GenerateResource.Cache
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpenFormApplication1.exe.config
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpenFormApplication1.exe
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpenFormApplication1.pdb
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpen.dll
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpen.Guide.dll
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpen.UF.dll
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpen.Utilities.dll
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpenUI.dll
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpen.xml
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpen.Guide.xml
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpen.UF.xml
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpen.Utilities.xml
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\bin\Debug\NXOpenUI.xml
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\obj\Debug\NXOpenFormApplication1.exe
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\BasicFormApplication1\obj\Debug\NXOpenFormApplication1.pdb
+C:\Users\chung\AppData\Local\Siemens\Journal\0_Template\BasicFormApplication1\bin\Debug\NXOpenFormApplication1.exe.config
+C:\Users\chung\AppData\Local\Siemens\Journal\0_Template\BasicFormApplication1\obj\Debug\NXOpenFormApplication1.exe
+C:\Users\chung\AppData\Local\Siemens\Journal\0_Template\BasicFormApplication1\obj\Debug\NXOpenFormApplication1.pdb

@@ -1,0 +1,15 @@
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\FormWriteTabular.dll
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\FormWriteTabular.pdb
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\NXOpen.dll
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\NXOpen.Guide.dll
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\NXOpen.UF.dll
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\NXOpen.Utilities.dll
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\NXOpenUI.dll
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\NXOpen.xml
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\NXOpen.Guide.xml
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\NXOpen.UF.xml
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\NXOpen.Utilities.xml
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\bin\Debug\NXOpenUI.xml
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\obj\Debug\ClassLibrary1.csprojResolveAssemblyReference.cache
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\obj\Debug\FormWriteTabular.dll
+C:\Users\JS PC\Desktop\cpp\ClassLibrary1\obj\Debug\FormWriteTabular.pdb

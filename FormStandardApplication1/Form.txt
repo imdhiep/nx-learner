@@ -1,0 +1,1 @@
+﻿Session.UndoMarkId markId = theSession.SetUndoMark(Session.MarkVisibility.Visible, "Undo Mark");

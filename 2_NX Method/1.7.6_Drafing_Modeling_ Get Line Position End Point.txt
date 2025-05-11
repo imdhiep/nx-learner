@@ -1,0 +1,85 @@
+using System;
+using NXOpen;
+using NXOpen.UF;
+
+namespace NXLinePoints
+{
+    public class Program
+    {
+        static Session theSession = Session.GetSession();
+        static Part workPart = theSession.Parts.Work;
+        static UFSession ufs = UFSession.GetUFSession();
+
+        public static void Main(string[] args)
+        {
+            ListingWindow lw = theSession.ListingWindow;
+            lw.Open();
+
+            NXOpen.Line myLine = null;
+            NXObject selObj;
+
+            // Lặp lại cho đến khi người dùng hủy thao tác chọn
+            while (SelectALine("Select a line", out selObj) != Selection.Response.Cancel)
+            {
+                myLine = selObj as NXOpen.Line;
+                if (myLine != null)
+                {
+                    // Sử dụng các hàm GetLineStart và GetLineEnd để lấy tọa độ điểm đầu và điểm cuối của line
+                    Point3d start = GetLineStart(myLine);
+                    Point3d end = GetLineEnd(myLine);
+                    lw.WriteLine("Line Start: " + start.ToString());
+                    lw.WriteLine("Line End: " + end.ToString());
+                    lw.WriteLine("");
+                }
+            }
+
+            lw.Close();
+        }
+
+        // Hàm lấy điểm đầu của line
+        static Point3d GetLineStart(NXOpen.Line line)
+        {
+            return line.StartPoint;
+        }
+
+        // Hàm lấy điểm cuối của line
+        static Point3d GetLineEnd(NXOpen.Line line)
+        {
+            return line.EndPoint;
+        }
+
+        // Hàm cho phép người dùng chọn một line từ màn hình
+        static Selection.Response SelectALine(string prompt, out NXObject selObj)
+        {
+            selObj = null;
+            UI theUI = UI.GetUI();
+            string title = "Select a Line";
+            bool includeFeatures = false;
+            bool keepHighlighted = false;
+            Selection.SelectionAction selAction = Selection.SelectionAction.ClearAndEnableSpecific;
+            Point3d cursor;
+            Selection.SelectionScope scope = Selection.SelectionScope.WorkPart;
+
+            Selection.MaskTriple[] selectionMask_array = new Selection.MaskTriple[1];
+            selectionMask_array[0] = new Selection.MaskTriple();
+            selectionMask_array[0].Type = UFConstants.UF_line_type;
+            selectionMask_array[0].Subtype = 0;
+
+            Selection.Response resp = theUI.SelectionManager.SelectObject(
+                prompt,
+                title,
+                scope,
+                selAction,
+                includeFeatures,
+                keepHighlighted,
+                selectionMask_array,
+                out selObj,
+                out cursor);
+
+            if (resp == Selection.Response.ObjectSelected || resp == Selection.Response.ObjectSelectedByName)
+                return Selection.Response.Ok;
+            else
+                return Selection.Response.Cancel;
+        }
+    }
+}

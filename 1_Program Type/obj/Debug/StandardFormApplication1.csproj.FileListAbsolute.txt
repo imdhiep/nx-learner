@@ -1,0 +1,2 @@
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\StandardFormApplication1\bin\Debug\NXOpenFormApplication1.exe.config
+C:\Users\chung\AppData\Local\Siemens\Journal\0_Template\1_Program\bin\Debug\NXOpenFormApplication1.exe.config
