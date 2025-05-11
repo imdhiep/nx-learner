@@ -1,0 +1,25 @@
+﻿1.1 Khởi tạo Form theo  Object Initializer Syntax : Gán các giá trị trực tiếp khi khai báo Form
+
+using (Form form = new Form
+{
+    Text = "Program",
+    ClientSize = new System.Drawing.Size(250, 100),
+    BackColor = System.Drawing.Color.White,
+    ShowIcon = false,
+    TopMost = true,
+    StartPosition = FormStartPosition.CenterScreen
+})
+{
+    // Sử dụng form ở đây
+}
+
+1.2 Khởi tạo Form theo Assignment Statements: Form được khai báo trước, sau đó gán các giá trị riêng lẻ
+
+Form form = new Form();
+
+form.Text = "Program";
+form.ClientSize = new System.Drawing.Size(250, 100);
+form.BackColor = System.Drawing.Color.White;
+form.ShowIcon = false;
+form.TopMost = true;
+form.StartPosition = FormStartPosition.CenterScreen;

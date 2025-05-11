@@ -1,0 +1,33 @@
+﻿1.1 Keyword 'using'
+
+	- Chức năng Using Directive: Rút gọn namespace
+		Cú pháp: using.Namespace;
+
+	- Chức năng Using Statement: Giải phóng tài nguyên các đối tượng implement (Giao diện UI, I/O, Bitmap...)
+		Cú pháp:
+		using (ResourceType resource = new ResourceType())
+		{
+		  // Sử dụng resource
+		} // Khi ra khỏi khối using, resource.Dispose() được tự động gọi.
+
+		Ví dụ: 
+		- nếu không sử dụng khối using: 
+
+			Form form = new Form();
+			
+			form.ClientSize = new System.Drawing.Size(250, 100);
+			form.Dispose();
+
+			Application.Run(form); 
+
+			//Khai báo thủ công, có thể kiểm soát thời điểm gọi Dispose(). Nhưng nếu gặp lỗi thì sẽ không được giải phóng
+
+		- nếu sử dụng khối using: 
+
+			using (Form form = new Form())
+			{
+				Application.Run(form);
+			} // Khi ra khỏi khối, form.Dispose() được tự động gọi.
+
+1.2 
+			

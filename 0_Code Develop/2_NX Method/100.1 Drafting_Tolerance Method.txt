@@ -1,0 +1,163 @@
+using System;
+using NXOpen;
+using NXOpen.UF;
+
+public class NXJournal
+{
+    public static void Main(string[] args)
+    {
+        NXOpen.Session theSession = NXOpen.Session.GetSession();
+        NXOpen.UI ui = NXOpen.UI.GetUI();
+        NXOpen.Part workPart = theSession.Parts.Work;
+
+        // Tạo biến selectedObject có kiểu NXOpen.TaggedObject để lưu trữ đối tượng được lựa chọn
+        NXOpen.TaggedObject selectedObject;
+
+        // Tạo biến response có kiểu Selection.Response để lưu đối tượng 
+        Selection.Response response = SelectDim(out selectedObject);
+
+        if (response == Selection.Response.Ok)
+        {
+            UpdateTolerancce(theSession, workPart, selectedObject);
+        }
+        else
+        {
+            theSession.ListingWindow.Open();
+            theSession.ListingWindow.WriteLine("No object was selected.");
+        }
+    }
+
+private static void UpdateTolerancce(NXOpen.Session theSession, NXOpen.Part workPart, NXOpen.TaggedObject selectedObject)
+{
+    // Tạo Undo Mark để có thể quay lại nếu cần
+    NXOpen.Session.UndoMarkId markId1 = theSession.SetUndoMark(NXOpen.Session.MarkVisibility.Visible, "Start");
+
+    // Kiểm tra và ép kiểu đối tượng selectedObject thành kiểu chung Dimension
+    NXOpen.Annotations.Dimension typeDim = selectedObject as NXOpen.Annotations.Dimension;
+    if (typeDim == null)
+    {
+        theSession.DeleteUndoMark(markId1, null);
+        return;
+    }
+
+if (typeDim is NXOpen.Annotations.HorizontalDimension 
+ || typeDim is NXOpen.Annotations.VerticalDimension 
+ || typeDim is NXOpen.Annotations.CylindricalDimension 
+ || typeDim is NXOpen.Annotations.PerpendicularDimension 
+ || typeDim is NXOpen.Annotations.ParallelDimension)
+{
+    // Xử lý HorizontalDimension và VerticalDimension
+    NXOpen.Annotations.LinearDimensionBuilder linearDimensionBuilder = workPart.Dimensions.CreateLinearDimensionBuilder(typeDim);
+    linearDimensionBuilder.Style.DimensionStyle.ToleranceType = NXOpen.Annotations.ToleranceType.BilateralOneLine;
+    linearDimensionBuilder.Style.DimensionStyle.UpperToleranceMetric = 0.05;
+
+    theSession.UpdateManager.DoUpdate(markId1);
+    linearDimensionBuilder.Commit();
+    linearDimensionBuilder.Destroy();
+}
+
+ else if (typeDim is NXOpen.Annotations.RadiusDimension 
+       || typeDim is NXOpen.Annotations.DiameterDimension
+       || typeDim is NXOpen.Annotations.HoleDimension)
+        {
+            // Xử lý RadiusDimension
+            NXOpen.Annotations.RadialDimensionBuilder radialDimensionBuilder = workPart.Dimensions.CreateRadialDimensionBuilder(typeDim);
+            radialDimensionBuilder.Style.DimensionStyle.ToleranceType = NXOpen.Annotations.ToleranceType.BilateralOneLine;
+            radialDimensionBuilder.Style.DimensionStyle.UpperToleranceMetric = 0.05;
+
+            theSession.UpdateManager.DoUpdate(markId1);
+            radialDimensionBuilder.Commit();
+            radialDimensionBuilder.Destroy();
+        }
+
+else if (typeDim is NXOpen.Annotations.VerticalOrdinateDimension 
+      || typeDim is NXOpen.Annotations.HorizontalOrdinateDimension)
+{
+    // Ép kiểu type Dim về OrdinateDimension. Vì phương thức CreateOrdinateDimensionBuilder chỉ nằm trong class con OrdinateDimension, không nằm ngoài class cha Dimension
+    NXOpen.Annotations.OrdinateDimension ordinateDim = typeDim as NXOpen.Annotations.OrdinateDimension;
+    if (ordinateDim != null)
+    {
+        NXOpen.Annotations.OrdinateDimensionBuilder ordinateDimensionBuilder = workPart.Dimensions.CreateOrdinateDimensionBuilder(ordinateDim);
+        ordinateDimensionBuilder.Style.DimensionStyle.ToleranceType = NXOpen.Annotations.ToleranceType.BilateralOneLine;
+        ordinateDimensionBuilder.Style.DimensionStyle.UpperToleranceMetric = 0.05;
+
+        theSession.UpdateManager.DoUpdate(markId1);
+        ordinateDimensionBuilder.Commit();
+        ordinateDimensionBuilder.Destroy();
+    }
+    else
+    {
+        return;
+    }
+}
+
+ theSession.DeleteUndoMark(markId1, null);
+}
+
+
+    public static int GetUnloadOption(string dummy)
+    {
+        return (int)NXOpen.Session.LibraryUnloadOption.Immediately;
+    }
+
+    private static void DisplayResult(NXOpen.Session theSession, NXOpen.TaggedObject[] selectedObjects)
+    {
+        theSession.ListingWindow.Open();
+
+        if (selectedObjects != null && selectedObjects.Length > 0)
+        {
+            foreach (NXOpen.TaggedObject obj in selectedObjects)
+            {
+                theSession.ListingWindow.WriteLine("Selected object: " + obj.ToString());
+            }
+        }
+        else
+        {
+            theSession.ListingWindow.WriteLine("No object was selected.");
+        }
+    }
+
+    public static Selection.Response SelectDim(out NXOpen.TaggedObject obj)
+    {
+        obj = null;
+        NXOpen.UI ui = NXOpen.UI.GetUI();
+        Selection.Response resp = Selection.Response.Cancel;
+
+        string prompt = "Select dimensions";
+        string message = "Select dimensions";
+        Selection.SelectionScope scope = Selection.SelectionScope.WorkPart;
+        Selection.SelectionAction selAction = Selection.SelectionAction.ClearAndEnableSpecific;
+
+        Selection.MaskTriple[] selectionMaskArray = new Selection.MaskTriple[1];
+        selectionMaskArray[0].Type = UFConstants.UF_dimension_type;
+        selectionMaskArray[0].Subtype = 0;
+        selectionMaskArray[0].SolidBodySubtype = 0;
+
+        bool includeFeatures = false;
+        bool keepHighlighted = false;
+
+        Point3d cursor = new Point3d();
+
+        resp = ui.SelectionManager.SelectTaggedObject(
+            prompt,
+            message,
+            scope,
+            selAction,
+            includeFeatures,
+            keepHighlighted,
+            selectionMaskArray,
+            out obj,
+            out cursor
+        );
+
+        if (resp == Selection.Response.ObjectSelected ||
+            resp == Selection.Response.ObjectSelectedByName)
+        {
+            return Selection.Response.Ok;
+        }
+        else
+        {
+            return Selection.Response.Cancel;
+        }
+    }
+}

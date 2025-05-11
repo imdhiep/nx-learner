@@ -1,0 +1,45 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio 2013
+VisualStudioVersion = 12.0.31101.0
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "StandardFormApplication1", "StandardFormApplication1.csproj", "{2F80459A-75A7-4A65-BEBC-F4CC3CC2EC50}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Journal File", "Journal File", "{6271B931-477A-419D-99FA-E92BAF81EAF0}"
+	ProjectSection(SolutionItems) = preProject
+		aJournal.cs = aJournal.cs
+		Backup.cs = Backup.cs
+		Record.cs = Record.cs
+		TextFile1.txt = TextFile1.txt
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "xCS Code", "xCS Code", "{353853E6-9987-4D40-BBDD-C521E5078A07}"
+	ProjectSection(SolutionItems) = preProject
+		Form.txt = Form.txt
+		Keywords.txt = Keywords.txt
+	EndProjectSection
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "NXOpen Libary", "NXOpen Libary", "{A52DF56E-8649-4844-9A9F-F3111E9E7993}"
+	ProjectSection(SolutionItems) = preProject
+		Basic Form 1.cs = Basic Form 1.cs
+		Basic Form 2.cs = Basic Form 2.cs
+		Basic Progam.cs = Basic Progam.cs
+		Standard Form.cs = Standard Form.cs
+		xProfesional Form.cs = xProfesional Form.cs
+	EndProjectSection
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{2F80459A-75A7-4A65-BEBC-F4CC3CC2EC50}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{2F80459A-75A7-4A65-BEBC-F4CC3CC2EC50}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{2F80459A-75A7-4A65-BEBC-F4CC3CC2EC50}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{2F80459A-75A7-4A65-BEBC-F4CC3CC2EC50}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+EndGlobal

@@ -1,0 +1,92 @@
+using System;
+using NXOpen;
+using NXOpen.Drawings;
+using NXOpen.UF;
+
+public class NXJournal
+{
+    public static void Main(string[] args)
+    {
+        Session theSession = Session.GetSession();
+        Part workPart = theSession.Parts.Work;
+        ListingWindow lw = theSession.ListingWindow;
+        lw.Open();
+
+        // Lấy DrawingSheet hiện hành
+        DrawingSheet currentSheet = workPart.DrawingSheets.CurrentDrawingSheet;
+        if (currentSheet == null)
+        {
+            lw.WriteLine("Không tìm thấy Drawing Sheet hiện hành.");
+            lw.Close();
+            return;
+        }
+
+        // Lấy tất cả các DraftingView trên sheet hiện hành
+        DraftingView[] views = currentSheet.GetDraftingViews();
+        if (views == null || views.Length == 0)
+        {
+            lw.WriteLine("Không có Drafting View nào trên sheet hiện hành.");
+            lw.Close();
+            return;
+        }
+
+        UFSession ufSession = UFSession.GetUFSession();
+
+        // Duyệt qua các view, bỏ qua những view có tên bắt đầu bằng "Isometric"
+        foreach (DraftingView view in views)
+        {
+            if (view.Name.StartsWith("Isometric"))
+                continue;
+
+            lw.WriteLine("Đang xử lý view: " + view.Name);
+
+            // Lấy các đối tượng hiển thị trong view
+            DisplayableObject[] visibleObjs = view.AskVisibleObjects();
+            if (visibleObjs == null || visibleObjs.Length == 0)
+            {
+                lw.WriteLine("  Không có đối tượng hiển thị trong view này.");
+                continue;
+            }
+
+            // Duyệt qua từng đối tượng để phân loại
+            foreach (DisplayableObject obj in visibleObjs)
+            {
+                int ufType, ufSubtype;
+                ufSession.Obj.AskTypeAndSubtype(obj.Tag, out ufType, out ufSubtype);
+                string objType = "Unknown";
+
+                // Phân loại dựa vào UF type và subtype
+                if (ufSubtype == UFConstants.UF_draft_linear_cntrln_subtype ||
+                    ufSubtype == UFConstants.UF_draft_cyl_cntrln_subtype)
+                {
+                    objType = "Centerline";
+                }
+                else
+                {
+                    switch (ufType)
+                    {
+                        case UFConstants.UF_line_type:
+                            objType = "Line";
+                            break;
+                        case UFConstants.UF_circle_type:
+                            objType = "Circle";
+                            break;
+                        case UFConstants.UF_spline_type:
+                            objType = "Spline";
+                            break;
+                        default:
+                            objType = "Other (" + obj.GetType().Name + ")";
+                            break;
+                    }
+                }
+
+                lw.WriteLine("  Object Tag: " + obj.Tag.ToString() + 
+                             " | Loại: " + objType +
+                             " | UF type: " + ufType.ToString() +
+                             " | Subtype: " + ufSubtype.ToString());
+            }
+            lw.WriteLine("");
+        }
+        lw.Close();
+    }
+}

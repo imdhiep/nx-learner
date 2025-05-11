@@ -1,0 +1,655 @@
+using System;
+using System.Collections.Generic;
+using System.Windows.Forms;
+using System.IO;
+using System.Xml;
+using System.Drawing;
+using NXOpen;
+using NXOpen.UF;
+
+#region Logging
+// Interface Logging
+public interface ILoggingService
+{
+    void Log(string message);
+}
+
+// Dịch vụ Logging (ghi ra Console hoặc hiển thị trên Label nếu có)
+public class LoggingService : ILoggingService
+{
+    private Label _statusLabel;
+
+    public LoggingService(Label statusLabel)
+    {
+        _statusLabel = statusLabel;
+    }
+
+    public void Log(string message)
+    {
+        if (_statusLabel != null)
+        {
+            _statusLabel.Text = message;
+        }
+        else
+        {
+            Console.WriteLine(message);
+        }
+    }
+}
+#endregion
+
+#region NX Open Handler: Các phương thức xử lý NX (Show, Hide, Sheet, Tabular, ...)
+public class NXHandler
+{
+    private static Session theSession;
+    private static UFSession theUfSession;
+    private static NXOpen.Part workPart;
+    private readonly ILoggingService _logger;
+
+    public NXHandler(ILoggingService logger)
+    {
+        _logger = logger;
+        try
+        {
+            theSession = Session.GetSession();
+            theUfSession = UFSession.GetUFSession();
+            workPart = theSession.Parts.Work;
+            _logger.Log("NX Session và Work Part được khởi tạo thành công.");
+        }
+        catch (Exception ex)
+        {
+            _logger.Log("Lỗi khởi tạo NX Session: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Ẩn tất cả các body trong workPart.
+    /// </summary>
+    public void HideAllBodies()
+    {
+        try
+        {
+            Session.UndoMarkId markId = theSession.SetUndoMark(Session.MarkVisibility.Visible, "Hide All Bodies");
+            theSession.SetUndoMarkName(markId, "Hide All Bodies");
+
+            theSession.DisplayManager.HideByType("SHOW_HIDE_TYPE_SOLID_BODIES", DisplayManager.ShowHideScope.AnyInAssembly);
+
+            int nErrs = theSession.UpdateManager.DoUpdate(markId);
+            if (nErrs > 0)
+            {
+                _logger.Log("Errors occurred while hiding bodies.");
+            }
+            theSession.DeleteUndoMark(markId, null);
+            _logger.Log("Đã ẩn tất cả các body.");
+        }
+        catch (Exception ex)
+        {
+            _logger.Log("Lỗi ẩn các body: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Hiển thị body có tên bắt đầu với partNo.
+    /// </summary>
+    /// <param name="partNo">Số Part để tìm kiếm</param>
+    public void ShowOnly(string partNo)
+    {
+        try
+        {
+            HideAllBodies();
+
+            foreach (Body body in workPart.Bodies)
+            {
+                if (body.Name.StartsWith(partNo))
+                {
+                    List<DisplayableObject> objectsToShow = new List<DisplayableObject>();
+                    objectsToShow.Add(body);
+                    theSession.DisplayManager.ShowObjects(objectsToShow.ToArray(), DisplayManager.LayerSetting.ChangeLayerToSelectable);
+                    _logger.Log("Đã hiển thị body: " + body.Name);
+                    break;
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.Log("Lỗi hiển thị body: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Đổi tên sheet (view) theo số Part và tên Part.
+    /// </summary>
+    /// <param name="partNo">Số Part</param>
+    /// <param name="partName">Tên Part</param>
+    public void RenameSheet(string partNo, string partName)
+    {
+        try
+        {
+            theSession.SetUndoMark(Session.MarkVisibility.Visible, "Rename View");
+            workPart.Views.WorkView.SetName(partNo + " - " + partName);
+            _logger.Log("Đã đổi tên sheet: " + partNo + " - " + partName);
+        }
+        catch (Exception ex)
+        {
+            _logger.Log("Lỗi đổi tên sheet: " + ex.Message);
+        }
+    }
+
+    /// <summary>
+    /// Cập nhật nội dung của Tabular Note dựa trên các giá trị truyền vào.
+    /// </summary>
+    public void UpdateTabularNote(string partNo, string partName, string quantity, string size, string material, string remarks)
+    {
+        try
+        {
+            const int rowNumber = 1;
+            const int startColumn = 1;
+            Tag myTableTag = Tag.Null;
+            Tag myTableSection = Tag.Null;
+
+            if (workPart == null)
+            {
+                throw new Exception("No active part found.");
+            }
+
+            const string undoMarkName = "NXJ journal";
+            Session.UndoMarkId markId1 = theSession.SetUndoMark(Session.MarkVisibility.Visible, undoMarkName);
+
+            // Tạo dictionary chứa các giá trị cần cập nhật
+            Dictionary<int, string> values = new Dictionary<int, string>();
+            values.Add(1, (string.IsNullOrEmpty(partNo) ? "" : partNo));
+            values.Add(2, (string.IsNullOrEmpty(partName) ? "" : partName));
+            values.Add(3, (string.IsNullOrEmpty(quantity) ? "" : quantity));
+            values.Add(4, (string.IsNullOrEmpty(size) ? "" : size));
+            values.Add(5, (string.IsNullOrEmpty(material) ? "" : material));
+            values.Add(6, (string.IsNullOrEmpty(remarks) ? "" : remarks));
+
+            Tag tabularNote = Tag.Null;
+            if (SelectTabularNote(ref tabularNote) != Selection.Response.Ok)
+            {
+                throw new Exception("No tabular note selected.");
+            }
+
+            theUfSession.Tabnot.AskTabularNoteOfSection(tabularNote, out myTableTag);
+
+            int numCols;
+            theUfSession.Tabnot.AskNmColumns(myTableTag, out numCols);
+            if (numCols < startColumn)
+            {
+                throw new Exception("Selected table has fewer columns than required.");
+            }
+
+            int numRows;
+            theUfSession.Tabnot.AskNmRows(myTableTag, out numRows);
+            if (numRows < rowNumber)
+            {
+                throw new Exception("Selected table has fewer rows than required.");
+            }
+
+            Tag rowTag = Tag.Null;
+            theUfSession.Tabnot.AskNthRow(myTableTag, rowNumber - 1, out rowTag);
+            if (rowTag == Tag.Null)
+            {
+                throw new Exception("Row not found.");
+            }
+
+            // Điền các giá trị vào các cell
+            for (int colIndex = startColumn; colIndex < startColumn + values.Count; colIndex++)
+            {
+                if (colIndex - 1 >= numCols)
+                {
+                    break;
+                }
+
+                Tag colTag = Tag.Null;
+                theUfSession.Tabnot.AskNthColumn(myTableTag, colIndex - 1, out colTag);
+                if (colTag == Tag.Null)
+                {
+                    return;
+                }
+
+                Tag myCellTag = Tag.Null;
+                theUfSession.Tabnot.AskCellAtRowCol(rowTag, colTag, out myCellTag);
+
+                string newText = "";
+                if (values.ContainsKey(colIndex))
+                {
+                    newText = values[colIndex];
+                }
+                else
+                {
+                    newText = " ";
+                }
+
+                theUfSession.Tabnot.SetCellText(myCellTag, newText);
+            }
+            _logger.Log("Tabular note đã được cập nhật thành công.");
+        }
+        catch (Exception ex)
+        {
+            _logger.Log("Lỗi cập nhật tabular note: " + ex.Message);
+        }
+    }
+
+    // Các phương thức hỗ trợ cho Tabular Note
+
+    private Selection.Response SelectTabularNote(ref Tag tabularNote)
+    {
+        string message = "Select a tabular note";
+        string title = "Select a tabular note";
+        int scope = UFConstants.UF_UI_SEL_SCOPE_ANY_IN_ASSEMBLY;
+        int response = 0;
+        Tag obj = Tag.Null;
+        Tag view = Tag.Null;
+        double[] cursor = new double[3];
+        UFUi.SelInitFnT ip = new UFUi.SelInitFnT(InitProc);
+
+        theUfSession.Ui.LockUgAccess(UFConstants.UF_UI_FROM_CUSTOM);
+
+        try
+        {
+            theUfSession.Ui.SelectWithSingleDialog(
+                message,
+                title,
+                scope,
+                ip,
+                System.IntPtr.Zero,
+                out response,
+                out tabularNote,
+                cursor,
+                out view);
+        }
+        finally
+        {
+            theUfSession.Ui.UnlockUgAccess(UFConstants.UF_UI_FROM_CUSTOM);
+        }
+
+        if (response != UFConstants.UF_UI_OBJECT_SELECTED)
+        {
+            return Selection.Response.Cancel;
+        }
+        else
+        {
+            return Selection.Response.Ok;
+        }
+    }
+
+    private int InitProc(System.IntPtr select_, System.IntPtr userdata)
+    {
+        int numTriples = 1;
+        UFUi.Mask[] maskTriples = new UFUi.Mask[1];
+        maskTriples[0].object_type = UFConstants.UF_tabular_note_type;
+        maskTriples[0].object_subtype = UFConstants.UF_tabular_note_section_subtype;
+        maskTriples[0].solid_type = 0;
+
+        theUfSession.Ui.SetSelMask(select_, UFUi.SelMaskAction.SelMaskClearAndEnableSpecific, numTriples, maskTriples);
+        return UFConstants.UF_UI_SEL_SUCCESS;
+    }
+}
+#endregion
+
+#region Data Model & Part List Service: Xử lý dữ liệu Part và danh sách Part (XML-based)
+/// <summary>
+/// Lớp dữ liệu Part (đã bổ sung thuộc tính ImagePath để load ảnh)
+/// Và chuyển Quantity sang kiểu string để giữ nguyên giá trị gốc (ví dụ "6EA").
+/// </summary>
+public class Part
+{
+    public string PartNo { get; set; }
+    public string PartName { get; set; }
+    public string Quantity { get; set; } // Giữ nguyên giá trị từ XML
+    public string Size { get; set; }
+    public string Material { get; set; }
+    public string Remarks { get; set; }
+    public string ImagePath { get; set; }
+
+    public Part(string partNo, string partName, string quantity, string size, string material, string remarks, string imagePath)
+    {
+        PartNo = partNo;
+        PartName = partName;
+        Quantity = quantity;
+        Size = size;
+        // Nếu giá trị material là "0" (do dữ liệu XML sai) thì chuyển thành chuỗi rỗng
+        Material = (material.Trim() == "0" ? "" : material);
+        Remarks = remarks;
+        ImagePath = imagePath;
+    }
+}
+
+/// <summary>
+/// Interface cho dịch vụ quản lý danh sách Part (Load/Save XML)
+/// </summary>
+public interface IPartListService
+{
+    List<Part> LoadParts();
+    void SaveParts(List<Part> parts);
+}
+
+/// <summary>
+/// Dịch vụ xử lý danh sách Part dựa trên file XML.
+/// File XML được đặt trong thư mục chứa Work Part của NX.
+/// </summary>
+public class PartListService : IPartListService
+{
+    private readonly string xmlFilePath;
+
+    public PartListService()
+    {
+        // Lấy đường dẫn của Work Part hiện tại trong NX để xác định thư mục chứa file XML
+        NXOpen.Session session = NXOpen.Session.GetSession();
+        string partFullPath = session.Parts.Work.FullPath;
+        string folderPath = Path.GetDirectoryName(partFullPath);
+        xmlFilePath = Path.Combine(folderPath, "xmlList.xml");
+    }
+
+    public List<Part> LoadParts()
+    {
+        List<Part> parts = new List<Part>();
+
+        if (File.Exists(xmlFilePath))
+        {
+            XmlDocument doc = new XmlDocument();
+            doc.Load(xmlFilePath);
+            XmlNodeList partNodes = doc.GetElementsByTagName("Part");
+            foreach (XmlNode node in partNodes)
+            {
+                string partNo = (node["PartNo"] != null ? node["PartNo"].InnerText : "");
+                string partName = (node["PartName"] != null ? node["PartName"].InnerText : "");
+                // Đọc Quantity dưới dạng string
+                string quantity = (node["Quantity"] != null ? node["Quantity"].InnerText : "");
+                string size = (node["Size"] != null ? node["Size"].InnerText : "");
+                string material = (node["Material"] != null ? node["Material"].InnerText : "");
+                // Lấy tag Remark/Remarks
+                string remarks = (node["Remark"] != null ? node["Remark"].InnerText : (node["Remarks"] != null ? node["Remarks"].InnerText : ""));
+                string imagePath = (node["Image"] != null ? node["Image"].InnerText : "");
+                Part part = new Part(partNo, partName, quantity, size, material, remarks, imagePath);
+                parts.Add(part);
+            }
+        }
+        return parts;
+    }
+
+    public void SaveParts(List<Part> parts)
+    {
+        XmlDocument doc = new XmlDocument();
+        XmlElement root = doc.CreateElement("Parts");
+        doc.AppendChild(root);
+
+        foreach (Part part in parts)
+        {
+            XmlElement partElem = doc.CreateElement("Part");
+
+            XmlElement partNoElem = doc.CreateElement("PartNo");
+            partNoElem.InnerText = part.PartNo;
+            partElem.AppendChild(partNoElem);
+
+            XmlElement partNameElem = doc.CreateElement("PartName");
+            partNameElem.InnerText = part.PartName;
+            partElem.AppendChild(partNameElem);
+
+            XmlElement quantityElem = doc.CreateElement("Quantity");
+            quantityElem.InnerText = part.Quantity;
+            partElem.AppendChild(quantityElem);
+
+            XmlElement sizeElem = doc.CreateElement("Size");
+            sizeElem.InnerText = part.Size;
+            partElem.AppendChild(sizeElem);
+
+            XmlElement materialElem = doc.CreateElement("Material");
+            materialElem.InnerText = part.Material;
+            partElem.AppendChild(materialElem);
+
+            XmlElement remarksElem = doc.CreateElement("Remark");
+            remarksElem.InnerText = part.Remarks;
+            partElem.AppendChild(remarksElem);
+
+            XmlElement imageElem = doc.CreateElement("Image");
+            imageElem.InnerText = part.ImagePath;
+            partElem.AppendChild(imageElem);
+
+            root.AppendChild(partElem);
+        }
+        doc.Save(xmlFilePath);
+    }
+}
+#endregion
+
+#region Main Form: Giao diện chính, chứa các điều khiển UI và gọi xử lý nghiệp vụ
+public class MainForm : Form
+{
+    private readonly NXHandler _nxHandler;
+    private readonly IPartListService _partListService;
+    private readonly ILoggingService _logger;
+
+    private ComboBox cbPartNo;
+    private ComboBox cbPartName;
+    private ComboBox cbQuantity;
+    private ComboBox cbSize;
+    private ComboBox cbMaterial;
+    private ComboBox cbRemarks;
+    private Button btnWrite;
+    private Button btnShowOnly;
+    private PictureBox pictureBox;
+    private Label lbStatus;
+
+    private List<Part> _parts;
+
+    public MainForm()
+    {
+        InitializeComponent();
+
+        // Khởi tạo LoggingService với Label hiển thị (nếu có)
+        _logger = new LoggingService(lbStatus);
+        // Khởi tạo NXHandler sử dụng LoggingService
+        _nxHandler = new NXHandler(_logger);
+        // Khởi tạo dịch vụ quản lý danh sách Part
+        _partListService = new PartListService();
+
+        LoadPartNos();
+    }
+
+    private void InitializeComponent()
+    {
+        this.SuspendLayout();
+
+        this.cbPartNo = new ComboBox();
+        this.cbPartName = new ComboBox();
+        this.cbQuantity = new ComboBox();
+        this.cbSize = new ComboBox();
+        this.cbMaterial = new ComboBox();
+        this.cbRemarks = new ComboBox();
+        this.btnWrite = new Button();
+        this.btnShowOnly = new Button();
+        this.pictureBox = new PictureBox();
+        this.lbStatus = new Label();
+
+        // cbPartNo
+        this.cbPartNo.Location = new System.Drawing.Point(12, 12);
+        this.cbPartNo.Size = new System.Drawing.Size(121, 21);
+        this.cbPartNo.SelectedIndexChanged += new EventHandler(this.cbPartNo_SelectedIndexChanged);
+        this.cbPartNo.Text = "Click to Select";
+
+        // cbPartName
+        this.cbPartName.Location = new System.Drawing.Point(12, 39);
+        this.cbPartName.Size = new System.Drawing.Size(121, 21);
+
+        // cbQuantity
+        this.cbQuantity.Location = new System.Drawing.Point(12, 66);
+        this.cbQuantity.Size = new System.Drawing.Size(121, 21);
+
+        // cbSize
+        this.cbSize.Location = new System.Drawing.Point(12, 93);
+        this.cbSize.Size = new System.Drawing.Size(121, 21);
+
+        // cbMaterial
+        this.cbMaterial.Location = new System.Drawing.Point(12, 120);
+        this.cbMaterial.Size = new System.Drawing.Size(121, 21);
+
+        // cbRemarks
+        this.cbRemarks.Location = new System.Drawing.Point(12, 147);
+        this.cbRemarks.Size = new System.Drawing.Size(121, 21);
+
+        // btnWrite
+        this.btnWrite.Location = new System.Drawing.Point(160, 180);
+        this.btnWrite.Size = new System.Drawing.Size(121, 30);
+        this.btnWrite.Text = "Write Tabular";
+        this.btnWrite.UseVisualStyleBackColor = true;
+        this.btnWrite.Click += new EventHandler(this.btnWrite_Click);
+
+        // btnShowOnly
+        this.btnShowOnly.Location = new System.Drawing.Point(12, 180);
+        this.btnShowOnly.Size = new System.Drawing.Size(121, 30);
+        this.btnShowOnly.Text = "Show Only";
+        this.btnShowOnly.UseVisualStyleBackColor = true;
+        this.btnShowOnly.Click += new EventHandler(this.btnShowOnly_Click);
+
+        // pictureBox
+        this.pictureBox.Location = new System.Drawing.Point(150, 20);
+        this.pictureBox.Size = new System.Drawing.Size(130, 130);
+        this.pictureBox.SizeMode = PictureBoxSizeMode.Zoom;
+
+        // lbStatus
+        this.lbStatus.AutoSize = true;
+        this.lbStatus.Location = new System.Drawing.Point(139, 15);
+        this.lbStatus.Size = new System.Drawing.Size(40, 13);
+        this.lbStatus.ForeColor = Color.DarkRed;
+
+        // MainForm settings
+        this.ClientSize = new System.Drawing.Size(300, 225);
+        this.AutoScaleMode = AutoScaleMode.Font;
+        this.BackColor = Color.White;
+        this.FormBorderStyle = FormBorderStyle.FixedDialog;
+        this.Text = "Drafting Tabular";
+        this.ShowIcon = false;
+        this.StartPosition = FormStartPosition.CenterScreen;
+        this.TopMost = true;
+
+        this.Load += new EventHandler(MainForm_Load);
+
+        this.Controls.Add(this.cbPartNo);
+        this.Controls.Add(this.cbPartName);
+        this.Controls.Add(this.cbQuantity);
+        this.Controls.Add(this.cbSize);
+        this.Controls.Add(this.cbMaterial);
+        this.Controls.Add(this.cbRemarks);
+        this.Controls.Add(this.btnWrite);
+        this.Controls.Add(this.btnShowOnly);
+        this.Controls.Add(this.lbStatus);
+        this.Controls.Add(this.pictureBox);
+
+        this.ResumeLayout(false);
+    }
+
+    private void MainForm_Load(object sender, EventArgs e)
+    {
+        this.Location = new System.Drawing.Point(this.Location.X + 500, this.Location.Y + 100);
+    }
+
+    /// <summary>
+    /// Load danh sách Part vào ComboBox cbPartNo.
+    /// </summary>
+    private void LoadPartNos()
+    {
+        _parts = _partListService.LoadParts();
+        foreach (Part part in _parts)
+        {
+            cbPartNo.Items.Add(part.PartNo);
+        }
+    }
+
+    private void cbPartNo_SelectedIndexChanged(object sender, EventArgs e)
+    {
+        string selectedPartNo = cbPartNo.SelectedItem.ToString();
+        Part part = _parts.Find(delegate(Part p) { return p.PartNo == selectedPartNo; });
+        if (part != null)
+        {
+            cbPartName.Items.Clear();
+            cbQuantity.Items.Clear();
+            cbSize.Items.Clear();
+            cbMaterial.Items.Clear();
+            cbRemarks.Items.Clear();
+
+            cbPartName.Items.Add(part.PartName);
+            cbQuantity.Items.Add(part.Quantity);
+            cbSize.Items.Add(part.Size);
+            cbMaterial.Items.Add(part.Material);
+            cbRemarks.Items.Add(part.Remarks);
+
+            cbPartName.SelectedIndex = 0;
+            cbQuantity.SelectedIndex = 0;
+            cbSize.SelectedIndex = 0;
+            cbMaterial.SelectedIndex = 0;
+            cbRemarks.SelectedIndex = 0;
+
+            // Load ảnh từ file nếu có và tồn tại
+            if (!string.IsNullOrEmpty(part.ImagePath) && File.Exists(part.ImagePath))
+            {
+                try
+                {
+                    pictureBox.Image = Image.FromFile(part.ImagePath);
+                }
+                catch (Exception ex)
+                {
+                    _logger.Log("Lỗi load ảnh: " + ex.Message);
+                    pictureBox.Image = null;
+                }
+            }
+            else
+            {
+                pictureBox.Image = null;
+            }
+        }
+    }
+
+    private void btnShowOnly_Click(object sender, EventArgs e)
+    {
+        if (cbPartNo.SelectedItem != null && cbPartName.SelectedItem != null)
+        {
+            string partNo = cbPartNo.SelectedItem.ToString();
+            string partName = cbPartName.SelectedItem.ToString();
+            _nxHandler.RenameSheet(partNo, partName);
+            _nxHandler.ShowOnly(partNo);
+        }
+    }
+
+    private void btnWrite_Click(object sender, EventArgs e)
+    {
+        try
+        {
+            this.Hide();
+
+            string partNo = cbPartNo.Text;
+            string partName = cbPartName.Text;
+            string quantity = cbQuantity.Text;
+            string size = cbSize.Text;
+            string material = cbMaterial.Text;
+            string remarks = cbRemarks.Text;
+
+            _nxHandler.UpdateTabularNote(partNo, partName, quantity, size, material, remarks);
+            _logger.Log("Write tabular successful");
+
+            this.Show();
+        }
+        catch (Exception ex)
+        {
+            _logger.Log("Error: " + ex.GetType().Name);
+            this.Show();
+        }
+    }
+}
+#endregion
+
+#region Entry Point: Class Program
+public static class Program
+{
+    public static void Main(string[] args)
+    {
+        Application.Run(new MainForm());
+    }
+
+    public static int GetUnloadOption(string dummy)
+    {
+        return (int)NXOpen.Session.LibraryUnloadOption.Immediately;
+    }
+}
+#endregion

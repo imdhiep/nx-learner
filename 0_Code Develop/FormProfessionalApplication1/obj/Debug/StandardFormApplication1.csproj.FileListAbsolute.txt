@@ -1,0 +1,2 @@
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\StandardFormApplication1\bin\Debug\NXOpenFormApplication1.exe.config
+E:\UG-CODE1\0 Code Libary\cs\Develop\Template\ProfesionalFormplication1\bin\Debug\NXOpenFormApplication1.exe.config

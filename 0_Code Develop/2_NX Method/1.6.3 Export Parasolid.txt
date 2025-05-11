@@ -1,0 +1,108 @@
+using System;
+using System.Collections.Generic;
+using NXOpen;
+using NXOpen.UF;
+using NXOpen.Utilities;
+using System.Windows.Forms;
+
+public class NXJournal
+{
+    public static void Main()
+    {
+        Session theSession = Session.GetSession();
+        UFSession ufs = UFSession.GetUFSession();
+        Part workPart = theSession.Parts.Work;
+        ListingWindow lw = theSession.ListingWindow;
+        NXObject[] mySelectedObjects;
+        List<Tag> tags = new List<Tag>();
+        string strParasolid;
+        
+        lw.Open();
+        
+        // Lấy đường dẫn tệp hiện tại và loại bỏ ".prt"
+        strParasolid = workPart.FullPath;
+        strParasolid = strParasolid.Substring(0, strParasolid.Length - 4);
+        
+        // Hiển thị hộp thoại nhập liệu thay vì Interaction.InputBox
+        string versionSuffix = ShowInputDialog("Enter version suffix (leave blank if not required)");
+        
+        if (!string.IsNullOrEmpty(versionSuffix))
+        {
+            strParasolid += "_" + versionSuffix;
+        }
+        
+        strParasolid += ".x_t"; // Thêm đuôi mở rộng tệp
+        
+        // Chọn đối tượng
+        Selection.Response myResponse = SelectObjects(out mySelectedObjects);
+        if (myResponse == Selection.Response.Cancel || myResponse == Selection.Response.Back)
+        {
+            return;
+        }
+        
+        // Gán tên cho các đối tượng được chọn và thu thập tag
+        foreach (Body obj in mySelectedObjects)
+        {
+            if (obj.IsOccurrence)
+            {
+                obj.SetName(obj.OwningComponent.DisplayName);
+            }
+            else
+            {
+                obj.SetName(obj.OwningPart.Leaf);
+            }
+            tags.Add(obj.Tag);
+        }
+        
+        // Xuất dữ liệu Parasolid
+        ufs.Ps.ExportData(tags.ToArray(), strParasolid);
+        lw.WriteLine("Output file: " + strParasolid);
+        lw.Close();
+    }
+    
+    public static Selection.Response SelectObjects(out NXObject[] selobj)
+    {
+        UI theUI = UI.GetUI();
+        string prompt = "Select Solid Bodies";
+        string title = "Selection";
+        bool includeFeatures = false;
+        bool keepHighlighted = false;
+        Selection.SelectionAction selAction = Selection.SelectionAction.ClearAndEnableSpecific;
+        Selection.SelectionScope scope = Selection.SelectionScope.AnyInAssembly;
+        Selection.MaskTriple[] selectionMaskArray = new Selection.MaskTriple[1];
+        
+        selectionMaskArray[0].Type = UFConstants.UF_solid_type;
+        selectionMaskArray[0].Subtype = 0;
+        selectionMaskArray[0].SolidBodySubtype = UFConstants.UF_UI_SEL_FEATURE_BODY;
+        
+        Selection.Response resp = theUI.SelectionManager.SelectObjects(
+            prompt, title, scope, selAction,
+            includeFeatures, keepHighlighted, selectionMaskArray, out selobj);
+        
+        return resp;
+    }
+    
+    public static string ShowInputDialog(string text)
+    {
+        Form prompt = new Form()
+        {
+            Width = 400,
+            Height = 200,
+            FormBorderStyle = FormBorderStyle.FixedDialog,
+            Text = "Version Input",
+            StartPosition = FormStartPosition.CenterScreen
+        };
+
+        Label textLabel = new Label() { Left = 20, Top = 20, Text = text, AutoSize = true };
+        TextBox textBox = new TextBox() { Left = 20, Top = 50, Width = 340 };
+        Button confirmation = new Button() { Text = "OK", Left = 280, Width = 80, Top = 80, DialogResult = DialogResult.OK };
+
+        confirmation.Click += (sender, e) => { prompt.Close(); };
+        prompt.Controls.Add(textLabel);
+        prompt.Controls.Add(textBox);
+        prompt.Controls.Add(confirmation);
+        prompt.AcceptButton = confirmation;
+
+        return prompt.ShowDialog() == DialogResult.OK ? textBox.Text : "";
+    }
+}

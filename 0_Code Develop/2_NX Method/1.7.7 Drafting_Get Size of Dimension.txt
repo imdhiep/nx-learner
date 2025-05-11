@@ -1,0 +1,53 @@
+using System;
+using NXOpen;
+using NXOpen.Annotations;
+
+public class Program
+{
+    public static void Main()
+    {
+        Session theSession = Session.GetSession();
+        Part workPart = theSession.Parts.Work;
+        ListingWindow lw = theSession.ListingWindow;
+        lw.Open();
+
+        foreach (Dimension myDim in workPart.Dimensions)
+        {
+            // Định dạng tọa độ AnnotationOrigin với 5 chữ số thập phân
+            var origin = myDim.AnnotationOrigin;
+            lw.WriteLine("annotation origin: " + 
+                origin.X.ToString("0.000") + ", " + 
+                origin.Y.ToString("0.000") + ", " + 
+                origin.Z.ToString("0.000"));
+
+            // Định dạng ComputedSize nếu là số thực
+            lw.WriteLine("computed size: " + myDim.ComputedSize.ToString("0.000"));
+
+            string[] mainText;
+            string[] dualText;
+            myDim.GetDimensionText(out mainText, out dualText);
+
+            foreach (string textLine in mainText)
+            {
+                lw.WriteLine("main text: " + textLine);
+            }
+
+            foreach (string textLine in dualText)
+            {
+                lw.WriteLine("dual text: " + textLine);
+            }
+
+            lw.WriteLine("is inspection dimension: " + myDim.InspectionDimensionFlag.ToString());
+            lw.WriteLine("is retained: " + myDim.IsRetained.ToString());
+            lw.WriteLine("");
+        }
+
+        lw.Close();
+    }
+
+    public static int GetUnloadOption(string dummy)
+    {
+        // Unloads the image when the NX session terminates
+        return (int)Session.LibraryUnloadOption.AtTermination;
+    }
+}
